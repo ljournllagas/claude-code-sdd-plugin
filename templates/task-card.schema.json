@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SDD task card",
+  "description": "Input to bin/route.mjs. Never put file contents, diffs or spec/plan text in a card.",
+  "type": "object",
+  "required": ["stage"],
+  "properties": {
+    "stage": { "enum": ["triage", "analyst", "planner", "developer", "reviewer-spec", "reviewer-plan", "reviewer-code"] },
+    "summary": { "type": "string", "description": "Plain-language statement of the work; truncated to router.maxSummaryChars. No code." },
+    "paths": { "type": "array", "items": { "type": "string" }, "description": "Repo-relative paths the work will touch or review. Used locally to derive risk flags; never sent anywhere." },
+    "files_touched": { "type": "integer", "minimum": 0 },
+    "tasks_upstream": { "type": "integer", "minimum": 0 },
+    "tasks_downstream": { "type": "integer", "minimum": 0 },
+    "last_tier": { "enum": ["light", "standard", "deep"], "description": "Tier of the latest failed attempt of this same task. Presence makes the card an escalation." },
+    "failures_at_last_tier": { "type": "integer", "minimum": 0 }
+  }
+}
