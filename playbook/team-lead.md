@@ -33,7 +33,7 @@ You are the **team-lead**: the main Claude Code session. Read this whole file, t
 3. **Card:** stage `triage`; `summary` = the request restated in plain language (at most 500 characters, no code); `paths`; `files_touched` = your estimate. Route it (§12.1).
 4. **Decide the Lane.** Start from the decision's `lane`.
    - **Risk floor.** The Lane must be FULL if `risk_flags` is non-empty, or the decision's `reason` says `lane FULL: irreversible …`, or (when `source` is `fallback`) the summary contains an entry of `cfg.riskKeywords` (case-insensitive substring; check it yourself). A user request for QUICK in that case is **refused**: say which signal fired and offer FULL (§10 "Risk-floor refusal"). The user may change the request's scope and re-triage.
-   - **Non-risk FULL** (`lane FULL: complexity …`, `lane FULL: ambiguous …`, or a fallback FULL caused only by size): state the rule from `reason` and warn once; if the user then chooses QUICK, honour it.
+   - **Non-risk FULL** (`lane FULL: complexity …`, `lane FULL: ambiguous …`, or a fallback FULL caused only by size): state the rule from `reason` and warn once. When `source` is `fallback`, `reason` holds only the fallback cause (for example "no key"), so do not quote it as the rule; state the fallback Lane rule instead: "FULL if any risk flag, a riskKeywords match in the summary, or `files_touched` absent or greater than 2; otherwise QUICK". In either case, if the user then chooses QUICK, honour it.
    - You may **raise** the proposed Lane on your own judgement (QUICK→FULL), saying why. You may never lower it on your own judgement.
    - **Too big for one spec** (multiple independent subsystems, or more than one session of work): do not invent a third Lane. Say "split this", name the pieces and a suggested order, and stop; each piece re-enters triage separately.
 5. **Print the triage line and stop.** No delegation happens before confirmation. Format:
@@ -57,7 +57,7 @@ No spec, no plan, no commit. Counters live in `tasks.quick`; the single review f
 4. **Attempt loop.** Run the attempt procedure of §7.3 for task key `quick` with these differences: the card is stage `developer` with the brief as summary; "the task's Verify" is the QUICK verify set; there is no plan marker to update, no commit, and no per-task leftover check (leftover edits are handled at the end, in step 7 below). A failed verify follows the same escalation ladder and the FF rule as FULL tasks. QUICK has no plan to amend, so a `TASK-BLOCKED: design-gap` is handled differently from §7.3 step 6: apply §10 "Leftover edits", show the developer's message to the user and stop; the user's next message is treated as a restated request (re-triage, §2) or they end the run.
 5. **Review.** Set `stage: "quick-review"`. Build the **run diff** (§12.4) over the QUICK run paths and write it under `.sdd/review/`. Route stage `reviewer-code` and dispatch the reviewer with `MODE: code` (§12.2). Write the record `.sdd/review/<slug>-code-r1.md` (findings verbatim, then dispositions). If any run path is also in `dirty_at_start`, note that the diff for that path includes the user's earlier edits, and repeat this in the report.
 6. **Review blockers.** Allowed one fix round: set `stage: "quick-fix"`; route a developer card (summary "fix review blockers") and dispatch it with the path of the review record; re-run the QUICK verify set (same ladder, counters in `tasks.quick-fix`); **no second review**. Anything still open is listed verbatim in the report.
-7. **Finish.** If an attempt's edits remain and no further attempt follows (ladder exhausted, `human:true` → Skip/Abort), apply §10 "Leftover edits" first. Then §11 (report). The changes stay **uncommitted** in the working tree.
+7. **Finish.** If an attempt's edits remain and no further attempt follows (ladder exhausted, `human:true` → Abort; QUICK offers no Skip, only I fixed it / Retry at deep with guidance / Abort), apply §10 "Leftover edits" first. Then §11 (report). The changes stay **uncommitted** in the working tree.
 
 ## 4. Lane FULL — spec stage
 
@@ -121,11 +121,11 @@ Each round k of the loop (1 … R), with record number N = the highest existing 
 | `reviewer-code` | "Review the run diff for: <goal>" | the run paths | `files_touched` = number of run paths |
 
 3. A **retry or escalation** card for a developer task adds `last_tier` and `failures_at_last_tier` (§7.3). The Router then makes no network call.
-4. If the decision has `human: true`, do not dispatch: apply §10 "Task needs a human". Otherwise dispatch with the decision's `model` and `effort`.
+4. If the decision has `human: true`, do not dispatch: apply §10 "Task needs a human". Otherwise dispatch per §12.2 with the decision's `model`, and its `effort` only when the Agent tool offers an `effort` parameter (§12.2).
 
 ### 12.2 Dispatching an agent
 
-Call the Agent tool in the foreground with: `subagent_type` = `sdd:<agent>` (`analyst`, `planner`, `developer`, `reviewer`); `model` = the decision's `model`, always; `effort` = the decision's `effort`, but only if your Agent tool offers an `effort` parameter (this playbook explicitly asks for that effort level) — otherwise omit it and carry on; effort is ignored for the lightest tier's model; and a prompt built from the templates below. Never resume a finished agent: every dispatch is a fresh agent. Prompts reference artifacts by path.
+Call the Agent tool in the foreground, with `run_in_background: false` (agents may default to the background, and a background dispatch returns before the work is done), and wait for its result before running verification or anything else. Pass: `subagent_type` = `sdd:<agent>` (`analyst`, `planner`, `developer`, `reviewer`); `model` = the decision's `model`, always; `effort` = the decision's `effort`, but only if your Agent tool offers an `effort` parameter (this playbook explicitly asks for that effort level) — otherwise omit it and carry on; effort is ignored for the lightest tier's model; and a prompt built from the templates below. Never resume a finished agent: every dispatch is a fresh agent. Prompts reference artifacts by path.
 
 **analyst**
 ```
@@ -195,7 +195,7 @@ Run each command with Bash from the project root; success is exit code 0. On fai
 ### 12.4 Git facts and the run diff
 
 - **Changed paths:** `git status --porcelain` (modified, added, deleted, untracked). **Run artifacts** are excluded from every "changed path" computation: `.sdd/**`, `CONTEXT.md`, `sdd.config.json`, and the `cfg.paths.specs` and `cfg.paths.plans` directories.
-- **Run paths:** FULL — the union of every task's Files list, including fix tasks, plus any leftover paths the user chose to Keep (`kept` in the marker). QUICK — the union of the files every developer attempt reported changing or creating, plus (in git projects) the files `git status --porcelain` shows changed or untracked at review time, minus `dirty_at_start` and run artifacts, so edits from attempts that never reported are included.
+- **Run paths:** FULL — the union of every task's Files list, including fix tasks, plus any leftover paths the user chose to Keep (`kept` in the marker). QUICK — the union of (a) the files every developer attempt reported changing or creating and (b) in git projects, the files `git status --porcelain` shows changed or untracked at review time that are not in `dirty_at_start` and are not run artifacts, so edits from attempts that never reported are included.
 - **Run diff (git projects):** for the untracked run paths run `git add -N -- <those paths>`; then `git diff <base> -- <run paths>` redirected to `.sdd/review/<slug>.diff`; then `git reset -q -- <the untracked paths you added>` so the user's index is left as found. Paths outside the run paths never appear. Pass the reviewer the diff file path.
 - **Not a git repository** (`base` is `none`): no diff and no commits. Write the run paths, one per line, to `.sdd/review/<slug>.files` and pass that. Say once that no commits are made and that progress is tracked in the plan checklist.
 
