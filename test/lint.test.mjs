@@ -120,3 +120,41 @@ test('/sdd-status runs the status script and nothing else', () => {
   assert.ok(t.includes('bin/status.mjs'));
   assert.ok(t.includes('--check-config') === false);
 });
+
+// ---------- playbook ----------
+const PLAYBOOK_A = [
+  '## 0. Ground rules', '## 1. Start-up', '## 2. Triage', '## 3. Lane QUICK', '## 4. Lane FULL — spec stage',
+  '## 5. Review loop (spec and plan)', '## 6. Lane FULL — plan stage', '## 12. Dispatch reference',
+];
+
+test('playbook part A: headings present and in order', () => {
+  const t = read('playbook/team-lead.md');
+  let at = -1;
+  for (const h of PLAYBOOK_A) {
+    const i = t.indexOf(`\n${h}\n`);
+    assert.ok(i > at, `${h} missing or out of order`);
+    at = i;
+  }
+  assert.ok(t.trimEnd().endsWith('<!-- END PLAYBOOK -->'));
+});
+
+test('playbook part A: key rules and tokens are present', () => {
+  const t = read('playbook/team-lead.md');
+  const tokens = [
+    // ground rules (AC-10a, AC-13, AC-32)
+    'never edit the content of a spec or plan', 'exact single-line replacement', 'never infer approval', '.sdd/active.json', 'updated',
+    // start-up (AC-30, AC-32, AC-34, §8)
+    '--check-config', 'run /sdd-init first', 'sdd end', 'guard.ttlHours', 'resume', 'never two runs at once',
+    // triage (AC-5, AC-8, AC-9)
+    '▸ triage:', 'No delegation happens before confirmation', 'Risk floor', 'riskKeywords', 'raise', 'split this', 'at most one search',
+    // QUICK (AC-6)
+    'QUICK verify set', 'never format', 'quick-dev', 'quick-review', 'quick-fix', 'dirty_at_start', 'uncommitted', 'brief', 'TASK-BLOCKED',
+    // spec stage and loop (AC-7, AC-10, AC-13)
+    'questionRounds', 'limits.openQuestions', 'in-review', 'approved', 'stall', 'cap hit', 'did not review', 'rejected:', 'Dispositions', 'Never run a round', 'new loop', 'Exit: ', '# Loop ',
+    // plan stage
+    'SPEC-GAP', 'Task count', 'Verify:',
+    // dispatch reference (AC-5, AC-16)
+    'bin/route.mjs', '.sdd/card.json', 'subagent_type', 'effort', 'MODE: ', 'LENSES:', 'FF DISPATCH', 'git add -N', 'git reset -q', '.fail.txt', 'last 40 lines',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
