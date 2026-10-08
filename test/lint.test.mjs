@@ -52,3 +52,45 @@ test('starter context is a glossary skeleton', () => {
   assert.match(t, /^# CONTEXT\.md/m);
   assert.ok(t.includes('One term per entry'));
 });
+
+// ---------- agents ----------
+function frontmatter(rel) {
+  const m = /^---\n([\s\S]*?)\n---\n/.exec(read(rel).replace(/\r\n/g, '\n'));
+  assert.ok(m, `${rel} has frontmatter`);
+  return Object.fromEntries(m[1].split('\n').map((l) => { const i = l.indexOf(':'); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; }));
+}
+
+const AGENT_TOOLS = {
+  analyst: 'Read, Glob, Grep, Write, Bash',
+  planner: 'Read, Glob, Grep, Write',
+  developer: 'Read, Glob, Grep, Edit, Write, Bash',
+  reviewer: 'Read, Glob, Grep',
+};
+for (const [name, tools] of Object.entries(AGENT_TOOLS)) {
+  test(`agent ${name}: frontmatter name, description and tool set`, () => {
+    const fm = frontmatter(`agents/${name}.md`);
+    assert.equal(fm.name, name);
+    assert.ok(fm.description.length > 20);
+    assert.equal(fm.tools, tools);
+    assert.ok(!('model' in fm), 'model is chosen per dispatch by the Router');
+  });
+}
+
+test('agent return formats the playbook parses are documented', () => {
+  const must = {
+    analyst: ['SPEC: ', 'OPEN QUESTIONS (', 'OPEN QUESTIONS: none', '[BLOCKING|NON-BLOCKING]', 'Recommended:', 'docs/sdd/specs/', 'CONTEXT.md'],
+    planner: ['PLAN: ', 'TASKS: ', 'SPEC-GAP: ', 'Verify block', 'verbatim', 'Check:', 'Manual:', 'none — no test command configured', 'Router summary', '5 files'],
+    developer: ['TASK-DONE ', 'TASK-BLOCKED: ', 'design-gap', 'defect', 'environment', 'Files changed:', 'Files created:', 'Red:', 'Green:', 'FF DISPATCH', 'QUICK'],
+    reviewer: ['MODE: spec', 'MODE: plan', 'MODE: code', 'Score:', 'Blockers (', 'Should-fix (', 'Solid:', 'Verdict:', 'Ready', 'Blockers must be resolved first', 'security', 'data', 'contract', 'performance', 'LENSES:'],
+  };
+  for (const [name, tokens] of Object.entries(must)) {
+    const t = read(`agents/${name}.md`);
+    for (const tok of tokens) assert.ok(t.includes(tok), `${name}.md must contain ${JSON.stringify(tok)}`);
+  }
+});
+
+test('agents never edit outside their remit (instruction text present)', () => {
+  assert.match(read('agents/analyst.md'), /never write (or edit )?code/i);
+  assert.match(read('agents/developer.md'), /outside the task's Files list/i);
+  assert.match(read('agents/reviewer.md'), /never modify/i);
+});
