@@ -44,4 +44,4 @@ Green:  <exact command> → expected: <specific outcome>
 Verify: <exact command(s) from the Verify block> → expected: <outcome>
 Commit: <imperative subject, at most 72 characters>
 
-<!-- With no `test` command configured: replace Tests with "none — no test command configured", replace Red/Green with `Check: <build/typecheck/lint command> → expected: <outcome>` lines, and use `Manual: <steps>` for Verify where a command cannot prove the task. -->
+<!-- With no `test` command configured: replace Tests with "none — no test command configured", replace Red/Green with `Check: <build/typecheck/lint command> → expected: <outcome>` lines, and where a command cannot prove the task write the Verify line as `Verify: Manual: <steps>` (the line still starts with `Verify:`). -->

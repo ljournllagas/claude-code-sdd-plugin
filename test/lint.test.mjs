@@ -212,6 +212,7 @@ function walk(dir, base = dir) {
 }
 
 const EXPECTED_FILES = [
+  '.gitattributes',
   '.claude-plugin/plugin.json',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
   'bin/detect.mjs', 'bin/route.mjs', 'bin/status.mjs',
