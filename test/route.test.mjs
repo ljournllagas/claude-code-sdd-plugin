@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as R from '../bin/route.mjs';
+import { encodeResponse, fixtureRequest, fixtureResponse } from './helpers/typesafe-mock.mjs';
 
 // A project directory whose name contains a space (Review Focus 1).
 const mkProj = (cfg, raw) => {
@@ -117,4 +118,134 @@ test('riskFlags: several categories, config order, no duplicates', () => {
 test('riskFlags: undefined or empty paths give no flags', () => {
   assert.deepEqual(R.riskFlags(undefined, RP), []);
   assert.deepEqual(R.riskFlags([], RP), []);
+});
+
+// ---------- TypeSafe wire adapter ----------
+const rawOf = (o = {}) => ({
+  kind: 'feature_logic',
+  complexity: { levels: [0.1, 0.7, 0.2, 0], position: null, scaleMin: null, scaleMax: null, confidence: 0.7 },
+  ambiguous: 0.1, irreversible: 0.1, cross_file: 0.1,
+  usage: { input_tokens: 100, output_tokens: 20 },
+  ...o,
+});
+const cx = (o) => ({ levels: null, position: null, scaleMin: null, scaleMax: null, confidence: null, ...o });
+
+test('normalise: expected level and confidence from level probabilities', () => {
+  const a = R.normalise(rawOf({ complexity: cx({ levels: [0, 1, 0, 0] }) }));
+  assert.equal(a.complexityScore, 1);
+  assert.equal(a.complexityConfidence, 1);
+  const b = R.normalise(rawOf({ complexity: cx({ levels: [0.5, 0.5, 0, 0] }) }));
+  assert.equal(b.complexityScore, 0.5);
+  assert.equal(b.complexityConfidence, 0.5);
+  const c = R.normalise(rawOf({ complexity: cx({ levels: [0, 0, 0.2, 0.8] }) }));
+  assert.ok(Math.abs(c.complexityScore - 2.8) < 1e-9);
+});
+
+test('normalise: probabilities that do not sum to 1 are renormalised', () => {
+  const a = R.normalise(rawOf({ complexity: cx({ levels: [0, 2, 0, 0] }) }));
+  assert.equal(a.complexityScore, 1);
+});
+
+test('normalise: reported confidence wins over max probability', () => {
+  const a = R.normalise(rawOf({ complexity: cx({ levels: [0, 1, 0, 0], confidence: 0.3 }) }));
+  assert.equal(a.complexityConfidence, 0.3);
+});
+
+test('normalise: an already-weighted position is rescaled to [0,3]', () => {
+  const a = R.normalise(rawOf({ complexity: cx({ position: 1.5, scaleMin: 0, scaleMax: 3, confidence: 0.8 }) }));
+  assert.equal(a.complexityScore, 1.5);
+  const b = R.normalise(rawOf({ complexity: cx({ position: 5, scaleMin: 0, scaleMax: 10, confidence: 0.8 }) }));
+  assert.equal(b.complexityScore, 1.5);
+});
+
+test('normalise: garbage is a WireError, never another error type (Review Focus 4)', () => {
+  const bad = [
+    rawOf({ ambiguous: 1.7 }),
+    rawOf({ irreversible: -0.2 }),
+    rawOf({ cross_file: Number.NaN }),
+    rawOf({ ambiguous: null }),
+    rawOf({ complexity: cx({ levels: [0, 0, 0, 0] }) }),
+    rawOf({ complexity: cx({ levels: [1, 0, 0] }) }),
+    rawOf({ complexity: cx({ levels: [-1, 2, 0, 0] }) }),
+    rawOf({ complexity: cx({}) }),
+    rawOf({ complexity: cx({ position: 1, scaleMin: 0, scaleMax: 3 }) }), // no confidence available
+    rawOf({ complexity: undefined }),
+    null,
+  ];
+  for (const raw of bad) assert.throws(() => R.normalise(raw), R.WireError);
+});
+
+test('normalise: unusable usage becomes null, valid usage is kept', () => {
+  assert.equal(R.normalise(rawOf({ usage: { input_tokens: 'x' } })).usage, null);
+  assert.deepEqual(R.normalise(rawOf()).usage, { input_tokens: 100, output_tokens: 20 });
+});
+
+test('truncateChars cuts on code points', () => {
+  assert.equal(R.truncateChars('x'.repeat(600), 500).length, 500);
+  const e = R.truncateChars('😀'.repeat(10), 4);
+  assert.equal(Array.from(e).length, 4);
+  assert.equal(e.length, 8);
+});
+
+test('buildState sends metadata only', () => {
+  const st = R.buildState({ stage: 'developer', summary: 'x'.repeat(600), paths: ['src/auth/a.ts'], files_touched: 3 }, ['auth'], 500);
+  assert.deepEqual(Object.keys(st).sort(), ['files_touched', 'risk_flags', 'stage', 'summary']);
+  assert.equal(st.summary.length, 500);
+  assert.deepEqual(st.risk_flags, ['auth']);
+  assert.equal(R.buildState({ stage: 'triage' }, [], 500).summary, '');
+});
+
+test('QUESTIONS covers the five spec questions', () => {
+  assert.deepEqual(R.QUESTIONS.map((q) => q.id), ['kind', 'complexity', 'ambiguous', 'irreversible', 'cross_file']);
+  assert.deepEqual(R.QUESTIONS.map((q) => q.primitive), ['choice', 'score', 'noul', 'noul', 'noul']);
+});
+
+test('buildRequest: endpoint, auth, model, all five questions, no paths', () => {
+  const cfg = R.defaultConfig();
+  const state = R.buildState({ stage: 'developer', summary: 'add helper', paths: ['src/auth/secret_name.ts'] }, ['auth'], 500);
+  const { url, init } = R.buildRequest(cfg, 'k-123', state);
+  assert.equal(url, cfg.router.endpoint);
+  assert.equal(init.method, 'POST');
+  assert.ok(JSON.stringify(init.headers).includes('k-123'));
+  const body = JSON.parse(init.body);
+  assert.equal(body.model, cfg.router.model);
+  for (const id of ['kind', 'complexity', 'ambiguous', 'irreversible', 'cross_file']) assert.ok(init.body.includes(`"${id}"`), id);
+  assert.ok(!init.body.includes('secret_name'));
+  assert.deepEqual(body.state, state);
+});
+
+test('buildRequest: per-question structure matches the documented example', () => {
+  // questionsOf is the one accessor to adapt if the live format nests questions differently.
+  // Live format: `questions` is a map keyed by question id (assumptions §4).
+  const questionsOf = (body) => Object.values(body.questions);
+  const example = questionsOf(fixtureRequest());
+  const built = questionsOf(JSON.parse(R.buildRequest(R.defaultConfig(), 'k', R.buildState({ stage: 'triage' }, [], 500)).init.body));
+  assert.equal(built.length, example.length);
+  const byPrimitive = (qs) => qs.map((q) => Object.keys(q).sort().join(','));
+  assert.deepEqual(byPrimitive(built).sort(), byPrimitive(example).sort());
+});
+
+test('extractRaw reads the documented example response (golden)', () => {
+  const raw = R.extractRaw(fixtureResponse());
+  assert.equal(typeof raw.complexity, 'object');
+  for (const k of ['ambiguous', 'irreversible', 'cross_file']) assert.equal(typeof raw[k], 'number');
+  assert.deepEqual(raw, {
+    kind: 'feature_logic',
+    complexity: { levels: [0.05, 0.6, 0.3, 0.05], position: null, scaleMin: null, scaleMax: null, confidence: 0.55 },
+    ambiguous: 0.22, irreversible: 0.04, cross_file: 0.71,
+    usage: { input_tokens: 812, output_tokens: 64 },
+  });
+});
+
+test('encodeResponse/extractRaw round trip', () => {
+  const raw = rawOf({ complexity: cx({ levels: [0.05, 0.15, 0.6, 0.2], confidence: 0.6 }), ambiguous: 0.42, irreversible: 0.07, cross_file: 0.93 });
+  assert.deepEqual(R.extractRaw(encodeResponse(raw)), raw);
+});
+
+test('parseResponse: non-objects and empty objects are WireErrors', () => {
+  for (const j of [null, undefined, 'x', 42, [], {}]) assert.throws(() => R.parseResponse(j), R.WireError);
+});
+
+test('parseResponse: out-of-range probability in a live-format body is a WireError', () => {
+  assert.throws(() => R.parseResponse(encodeResponse(rawOf({ ambiguous: 1.7 }))), R.WireError);
 });

@@ -154,6 +154,156 @@ export function riskFlags(paths, riskPaths) {
   return flags;
 }
 // ==== TYPESAFE WIRE ====
+export class WireError extends Error {}
+
+// Meanings are fixed by spec §5.2; wording is ours. Encoded for the wire by buildRequest.
+export const QUESTIONS = [
+  {
+    id: 'kind', primitive: 'choice',
+    prompt: 'What is the dominant nature of the work described in the state?',
+    options: [
+      { id: 'mechanical_edit', criteria: 'Renaming, moving, reformatting or other edits that do not change behaviour.' },
+      { id: 'feature_logic', criteria: 'Adding or changing behaviour with clear requirements.' },
+      { id: 'debugging', criteria: 'Finding and fixing the cause of wrong behaviour.' },
+      { id: 'design_judgment', criteria: 'Choosing between approaches or shaping structure with trade-offs.' },
+      { id: 'docs_or_text', criteria: 'Writing or editing documentation, comments or prose.' },
+    ],
+  },
+  {
+    id: 'complexity', primitive: 'score',
+    prompt: 'How difficult is this work for an engineer who has not seen the codebase?',
+    levels: [
+      { index: 0, criteria: 'Trivial and mechanical.' },
+      { index: 1, criteria: 'A contained, single-behaviour change.' },
+      { index: 2, criteria: 'Multi-part or cross-cutting.' },
+      { index: 3, criteria: 'Hard or ambiguous design.' },
+    ],
+  },
+  {
+    id: 'ambiguous', primitive: 'noul', prompt: 'Are the requirements unclear enough that a worker would have to guess at intent?',
+    criteria: {
+      true: 'Key details of the expected result are missing or open to more than one reasonable reading.',
+      false: 'The expected result is clear enough to implement without guessing.',
+    },
+  },
+  {
+    id: 'irreversible', primitive: 'noul', prompt: 'Once deployed, can this change not be cleanly rolled back (schema, data, public contract, authentication, persisted data, deletion)?',
+    criteria: {
+      true: 'Rolling back would not restore the previous state cleanly.',
+      false: 'Reverting the code change fully restores the previous state.',
+    },
+  },
+  {
+    id: 'cross_file', primitive: 'noul', prompt: 'Does the work need reasoning across several files or modules?',
+    criteria: {
+      true: 'The worker must understand and keep consistent several files or modules.',
+      false: 'The work can be done by understanding a single file or module.',
+    },
+  },
+];
+
+export function truncateChars(s, n) {
+  return Array.from(String(s ?? '')).slice(0, n).join('');
+}
+
+export function buildState(card, flags, maxChars) {
+  const s = { stage: card.stage, summary: truncateChars(card.summary ?? '', maxChars), risk_flags: flags };
+  for (const k of ['files_touched', 'tasks_upstream', 'tasks_downstream']) if (card[k] !== undefined) s[k] = card[k];
+  return s;
+}
+
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+// Spec §5.2 "Scalar definitions". `raw` has the shape documented for extractRaw.
+export function normalise(raw) {
+  const bad = (m) => { throw new WireError(m); };
+  if (!isPlainObject(raw)) bad('response is not an object');
+  const prob = (v, name) => (isNum(v) && v >= 0 && v <= 1 ? v : bad(`${name} is not a probability`));
+  const c = isPlainObject(raw.complexity) ? raw.complexity : bad('complexity answer missing');
+  let confidence = isNum(c.confidence) ? c.confidence : null;
+  let score;
+  if (Array.isArray(c.levels) && c.levels.length === 4 && c.levels.every((p) => isNum(p) && p >= 0)) {
+    const sum = c.levels.reduce((a, b) => a + b, 0);
+    if (!(sum > 0)) bad('complexity levels sum to zero');
+    const p = c.levels.map((x) => x / sum);
+    score = p.reduce((acc, x, i) => acc + i * x, 0);
+    if (confidence === null) confidence = Math.max(...p);
+  } else if (isNum(c.position) && isNum(c.scaleMax)) {
+    const lo = isNum(c.scaleMin) ? c.scaleMin : 0;
+    if (!(c.scaleMax > lo)) bad('complexity scale is empty');
+    score = ((c.position - lo) / (c.scaleMax - lo)) * 3;
+  } else bad('complexity answer unusable');
+  if (confidence === null || confidence < 0 || confidence > 1) bad('complexity confidence missing');
+  const u = raw.usage;
+  const usage = isPlainObject(u) && isNum(u.input_tokens) && isNum(u.output_tokens)
+    ? { input_tokens: u.input_tokens, output_tokens: u.output_tokens } : null;
+  return {
+    kind: typeof raw.kind === 'string' ? raw.kind : null,
+    complexityScore: Math.min(3, Math.max(0, score)),
+    complexityConfidence: confidence,
+    ambiguous: prob(raw.ambiguous, 'ambiguous'),
+    irreversible: prob(raw.irreversible, 'irreversible'),
+    cross_file: prob(raw.cross_file, 'cross_file'),
+    usage,
+  };
+}
+
+export function parseResponse(json) {
+  return normalise(extractRaw(json));
+}
+
+// Encodes one QUESTIONS entry in the live wire format (assumptions §4) as an [id, question] pair for
+// the `questions` map. The id is not shown to the model, so the meaning lives in instructions/criteria.
+// For every question, the keys of the encoded value equal those of the same-type question in the fixture.
+function encodeQuestion(q) {
+  let criteria;
+  if (q.primitive === 'choice') criteria = Object.fromEntries(q.options.map((o) => [o.id, o.criteria]));
+  else if (q.primitive === 'score') criteria = [...q.levels].sort((a, b) => a.index - b.index).map((l) => l.criteria);
+  else criteria = { true: q.criteria.true, false: q.criteria.false };
+  return [q.id, { type: q.primitive, instructions: q.prompt, criteria }];
+}
+
+export function buildRequest(cfg, apiKey, state) {
+  const body = { model: cfg.router.model, state, questions: Object.fromEntries(QUESTIONS.map(encodeQuestion)) };
+  return {
+    url: cfg.router.endpoint,
+    init: {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    },
+  };
+}
+
+// Reads the live response into the `raw` shape below. Returns null for any value the response does not
+// carry; throws WireError (never TypeError) if `json` is not an object or the answers are structurally absent.
+//   raw = { kind, complexity: { levels, position, scaleMin, scaleMax, confidence }, ambiguous, irreversible, cross_file, usage }
+// Paths (assumptions §4): answers.kind.choice; answers.complexity.probabilities."0".."3" and .confidence;
+// answers.<noul id>.noul; usage.input_tokens/output_tokens. The live Score answer carries per-level
+// probabilities, so position/scaleMin/scaleMax are always null.
+export function extractRaw(json) {
+  if (!isPlainObject(json)) throw new WireError('response is not an object');
+  const answers = json.answers;
+  if (!isPlainObject(answers)) throw new WireError('response has no answers object');
+  const ans = (id) => (isPlainObject(answers[id]) ? answers[id] : {});
+  const num = (v) => (typeof v === 'number' ? v : null);
+  const kind = ans('kind');
+  const cxa = ans('complexity');
+  const p = cxa.probabilities;
+  const levels = isPlainObject(p) && Object.keys(p).length === 4 && [0, 1, 2, 3].every((i) => typeof p[String(i)] === 'number')
+    ? [0, 1, 2, 3].map((i) => p[String(i)]) : null;
+  const u = json.usage;
+  const usage = isPlainObject(u) && typeof u.input_tokens === 'number' && typeof u.output_tokens === 'number'
+    ? { input_tokens: u.input_tokens, output_tokens: u.output_tokens } : null;
+  return {
+    kind: typeof kind.choice === 'string' ? kind.choice : null,
+    complexity: { levels, position: null, scaleMin: null, scaleMax: null, confidence: num(cxa.confidence) },
+    ambiguous: num(ans('ambiguous').noul),
+    irreversible: num(ans('irreversible').noul),
+    cross_file: num(ans('cross_file').noul),
+    usage,
+  };
+}
 // ==== DECISIONS ====
 // ==== LOG AND CARD ====
 // ==== ROUTE ====
