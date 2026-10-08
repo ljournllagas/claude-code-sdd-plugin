@@ -249,3 +249,93 @@ test('parseResponse: non-objects and empty objects are WireErrors', () => {
 test('parseResponse: out-of-range probability in a live-format body is a WireError', () => {
   assert.throws(() => R.parseResponse(encodeResponse(rawOf({ ambiguous: 1.7 }))), R.WireError);
 });
+
+// ---------- mapping ----------
+const CFG = R.defaultConfig();
+const ans = (o = {}) => ({ kind: 'feature_logic', complexityScore: 0.5, complexityConfidence: 0.9, ambiguous: 0.1, irreversible: 0.1, cross_file: 0.1, usage: null, ...o });
+const dec = (o, card = { stage: 'developer' }, flags = []) => R.decideFromAnswers(card, ans(o), CFG, flags);
+
+test('mapping: base tier boundaries 0.99 / 1.0 / 1.99 / 2.0', () => {
+  assert.equal(dec({ complexityScore: 0.99 }).tier, 'light');
+  assert.equal(dec({ complexityScore: 1.0 }).tier, 'standard');
+  assert.equal(dec({ complexityScore: 1.99 }).tier, 'standard');
+  assert.equal(dec({ complexityScore: 2.0 }).tier, 'deep');
+  assert.equal(dec({ complexityScore: 3 }).tier, 'deep');
+});
+
+test('mapping: each bump trigger adds one tier; thresholds are inclusive/exclusive as specified', () => {
+  assert.equal(dec({ ambiguous: 0.5 }).tier, 'standard');
+  assert.equal(dec({ ambiguous: 0.49 }).tier, 'light');
+  assert.equal(dec({ irreversible: 0.5 }).tier, 'standard');
+  assert.equal(dec({ complexityConfidence: 0.59 }).tier, 'standard');
+  assert.equal(dec({ complexityConfidence: 0.6 }).tier, 'light');
+});
+
+test('mapping: bump is at most +1 in total and never past deep', () => {
+  assert.equal(dec({ ambiguous: 0.9, irreversible: 0.9, complexityConfidence: 0.1 }).tier, 'standard');
+  assert.equal(dec({ complexityScore: 2.5, ambiguous: 0.9 }).tier, 'deep');
+  assert.equal(dec({ complexityScore: 1.5, ambiguous: 0.9 }).tier, 'deep');
+});
+
+test('mapping: cross_file lifts light to standard only', () => {
+  assert.equal(dec({ cross_file: 0.5 }).tier, 'standard');
+  assert.equal(dec({ complexityScore: 2.5, cross_file: 0.9 }).tier, 'deep');
+});
+
+test('mapping: stage floors raise but never lower', () => {
+  assert.equal(dec({ complexityScore: 0.2 }, { stage: 'analyst' }).tier, 'standard');
+  assert.equal(dec({ complexityScore: 0.2 }, { stage: 'reviewer-spec' }).tier, 'standard');
+  assert.equal(dec({ complexityScore: 2.5 }, { stage: 'analyst' }).tier, 'deep');
+});
+
+test('mapping: risk minimums raise but never lower; lens is the deduplicated union', () => {
+  const d = dec({ complexityScore: 0.2 }, { stage: 'developer' }, ['auth', 'money']);
+  assert.equal(d.tier, 'standard');
+  assert.deepEqual(d.lens, ['security']);
+  assert.deepEqual(d.risk_flags, ['auth', 'money']);
+  assert.equal(dec({ complexityScore: 2.5 }, { stage: 'developer' }, ['auth']).tier, 'deep');
+  assert.deepEqual(dec({}, { stage: 'developer' }, ['schema', 'auth']).lens, ['data', 'security']);
+});
+
+test('mapping: effort and model come from the tier maps; confidence is reported', () => {
+  const d = dec({ complexityScore: 2.5, complexityConfidence: 0.77 });
+  assert.equal(d.effort, 'high');
+  assert.equal(d.model, 'opus');
+  assert.equal(d.confidence, 0.77);
+  assert.equal(d.source, 'typesafe');
+  assert.equal(d.human, false);
+  assert.equal(d.lane, null);
+});
+
+test('mapping: custom models and efforts are honoured', () => {
+  const cfg = { ...CFG, models: { light: 'a', standard: 'b', deep: 'c' }, efforts: { light: 'low', standard: 'high', deep: 'max' } };
+  const d = R.decideFromAnswers({ stage: 'developer' }, ans({ complexityScore: 1.5 }), cfg, []);
+  assert.equal(d.model, 'b');
+  assert.equal(d.effort, 'high');
+});
+
+test('mapping: lane is set for triage only, with the specified rule order', () => {
+  const t = (o, flags = []) => R.decideFromAnswers({ stage: 'triage' }, ans(o), CFG, flags);
+  assert.equal(t({ complexityScore: 1.9 }).lane, 'QUICK');
+  assert.equal(t({ complexityScore: 2.0 }).lane, 'FULL');
+  assert.ok(t({ complexityScore: 2.3 }).reason.includes('lane FULL: complexity 2.3 ≥ 2.0'));
+  assert.equal(t({ ambiguous: 0.5 }).lane, 'FULL');
+  assert.equal(t({ irreversible: 0.5 }).lane, 'FULL');
+  assert.equal(t({}, ['schema']).lane, 'FULL');
+  assert.ok(t({}, ['schema']).reason.includes('lane FULL: risk flag schema'));
+  assert.ok(t({}).reason.includes('lane QUICK'));
+  assert.equal(R.decideFromAnswers({ stage: 'developer' }, ans({ complexityScore: 2.9 }), CFG, ['auth']).lane, null);
+});
+
+test('mapping: reason names every rule that moved the tier', () => {
+  const d = dec({ complexityScore: 1.4, ambiguous: 0.71, complexityConfidence: 0.9 }, { stage: 'developer' }, ['auth']);
+  assert.equal(d.tier, 'deep');
+  assert.ok(d.reason.includes('complexity 1.4 → standard'));
+  assert.ok(d.reason.includes('ambiguous 0.71'));
+  assert.ok(d.reason.includes('+1 → deep'));
+  const e = dec({ complexityScore: 0.2 }, { stage: 'analyst' });
+  assert.ok(e.reason.includes('floor analyst=standard'));
+  const f = dec({ complexityScore: 0.2 }, { stage: 'developer' }, ['auth']);
+  assert.ok(f.reason.includes('risk auth → standard'));
+  assert.ok(!f.reason.includes('\n'));
+});

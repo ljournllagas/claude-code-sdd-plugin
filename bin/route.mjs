@@ -305,6 +305,70 @@ export function extractRaw(json) {
   };
 }
 // ==== DECISIONS ====
+export const rank = (t) => TIERS.indexOf(t);
+export const maxTier = (a, b) => (rank(b) > rank(a) ? b : a);
+const fmt = (n) => String(Math.round(n * 100) / 100);
+
+function applyRisk(tier, flags, cfg, parts) {
+  for (const cat of flags) {
+    const min = cfg.riskPaths[cat].minTier;
+    if (rank(min) > rank(tier)) { tier = min; parts.push(`risk ${cat} → ${min}`); }
+  }
+  return tier;
+}
+
+const lensFor = (flags, cfg) => [...new Set(flags.map((c) => cfg.riskPaths[c].lens))];
+
+function build(cfg, card, flags, tier, fields) {
+  return {
+    stage: card.stage, tier, effort: cfg.efforts[tier], model: cfg.models[tier],
+    lane: null, lens: lensFor(flags, cfg), risk_flags: flags,
+    source: 'typesafe', human: false, reason: '',
+    ...fields,
+  };
+}
+
+function laneFor(answers, flags, cfg) {
+  const nt = cfg.router.noulThreshold;
+  if (flags.length) return { lane: 'FULL', reason: `lane FULL: risk flag ${flags.join('+')}` };
+  if (answers.irreversible >= nt) return { lane: 'FULL', reason: `lane FULL: irreversible ${fmt(answers.irreversible)} ≥ ${nt}` };
+  if (answers.complexityScore >= 2) return { lane: 'FULL', reason: `lane FULL: complexity ${fmt(answers.complexityScore)} ≥ 2.0` };
+  if (answers.ambiguous >= nt) return { lane: 'FULL', reason: `lane FULL: ambiguous ${fmt(answers.ambiguous)} ≥ ${nt}` };
+  return { lane: 'QUICK', reason: 'lane QUICK: no risk flag, complexity < 2.0, requirements clear' };
+}
+
+// Spec §5.2 steps 1-8.
+export function decideFromAnswers(card, answers, cfg, flags) {
+  const r = cfg.router;
+  const parts = [];
+  let tier = answers.complexityScore < 1 ? 'light' : answers.complexityScore < 2 ? 'standard' : 'deep';
+  parts.push(`complexity ${fmt(answers.complexityScore)} → ${tier}`);
+
+  const why = [];
+  if (answers.ambiguous >= r.noulThreshold) why.push(`ambiguous ${fmt(answers.ambiguous)}`);
+  if (answers.irreversible >= r.noulThreshold) why.push(`irreversible ${fmt(answers.irreversible)}`);
+  if (answers.complexityConfidence < r.confidenceThreshold) why.push(`confidence ${fmt(answers.complexityConfidence)} < ${r.confidenceThreshold}`);
+  if (why.length) {
+    tier = TIERS[Math.min(rank(tier) + 1, TIERS.length - 1)];
+    parts.push(`${why.join(', ')} → +1 → ${tier}`);
+  }
+  if (answers.cross_file >= r.noulThreshold && rank(tier) < rank('standard')) {
+    tier = 'standard';
+    parts.push(`cross_file ${fmt(answers.cross_file)} → standard`);
+  }
+  const floor = cfg.stageFloors[card.stage];
+  if (rank(floor) > rank(tier)) { tier = floor; parts.push(`floor ${card.stage}=${floor}`); }
+  tier = applyRisk(tier, flags, cfg, parts);
+
+  const d = build(cfg, card, flags, tier, { confidence: answers.complexityConfidence });
+  if (card.stage === 'triage') {
+    const l = laneFor(answers, flags, cfg);
+    d.lane = l.lane;
+    parts.push(l.reason);
+  }
+  d.reason = parts.join('; ');
+  return d;
+}
 // ==== LOG AND CARD ====
 // ==== ROUTE ====
 // ==== CLI ====
