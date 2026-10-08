@@ -369,6 +369,42 @@ export function decideFromAnswers(card, answers, cfg, flags) {
   d.reason = parts.join('; ');
   return d;
 }
+
+export const FALLBACK_CAUSES = ['no key', 'disabled', 'invalid config', 'timeout', 'network error', 'http 401', 'http 422', 'http 429', 'http 529', 'bad response'];
+
+// Spec §5.4. `card.last_tier` is present.
+export function escalate(card, cfg, flags) {
+  const n = cfg.limits.verifyFailuresPerTier;
+  const f = card.failures_at_last_tier ?? 0;
+  const last = card.last_tier;
+  const parts = [];
+  let tier;
+  let source = 'escalation';
+  let human = false;
+  if (f < n) { tier = last; parts.push(`retry at same tier (${f}/${n} failures at ${last})`); }
+  else if (last !== 'deep') { tier = TIERS[rank(last) + 1]; parts.push(`${f} failures at ${last} → ${tier}`); }
+  else { tier = 'deep'; source = 'human'; human = true; parts.push(`${f} failures at deep → human`); }
+  const floor = cfg.stageFloors[card.stage];
+  if (rank(floor) > rank(tier)) { tier = floor; parts.push(`floor ${card.stage}=${floor}`); }
+  tier = applyRisk(tier, flags, cfg, parts);
+  const d = build(cfg, card, flags, tier, { source, human });
+  d.reason = parts.join('; ');
+  return d;
+}
+
+// Spec §5.5. `cause` is one of FALLBACK_CAUSES or `http <status>`.
+export function fallbackDecision(card, cfg, flags, cause) {
+  const tier = applyRisk(cfg.fallbackTiers[card.stage], flags, cfg, []);
+  const d = build(cfg, card, flags, tier, { source: 'fallback' });
+  if (card.stage === 'triage') {
+    const text = (card.summary ?? '').toLowerCase();
+    const keyword = cfg.riskKeywords.some((k) => text.includes(k.toLowerCase()));
+    const big = card.files_touched === undefined || card.files_touched > 2;
+    d.lane = flags.length || keyword || big ? 'FULL' : 'QUICK';
+  }
+  d.reason = cause;
+  return d;
+}
 // ==== LOG AND CARD ====
 // ==== ROUTE ====
 // ==== CLI ====

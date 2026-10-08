@@ -339,3 +339,82 @@ test('mapping: reason names every rule that moved the tier', () => {
   assert.ok(f.reason.includes('risk auth → standard'));
   assert.ok(!f.reason.includes('\n'));
 });
+
+// ---------- escalation ----------
+const esc = (o) => R.escalate({ stage: 'developer', ...o }, CFG, []);
+
+test('escalation: retry at same tier below the threshold', () => {
+  const d = esc({ last_tier: 'light', failures_at_last_tier: 1 });
+  assert.equal(d.tier, 'light');
+  assert.equal(d.source, 'escalation');
+  assert.equal(d.human, false);
+  assert.ok(d.reason.includes('retry at same tier'));
+  assert.ok(!('confidence' in d));
+});
+
+test('escalation: next tier at the threshold, deep after standard, human after deep', () => {
+  assert.equal(esc({ last_tier: 'light', failures_at_last_tier: 2 }).tier, 'standard');
+  assert.equal(esc({ last_tier: 'standard', failures_at_last_tier: 2 }).tier, 'deep');
+  const h = esc({ last_tier: 'deep', failures_at_last_tier: 2 });
+  assert.equal(h.human, true);
+  assert.equal(h.source, 'human');
+  assert.equal(h.tier, 'deep');
+  assert.equal(h.model, 'opus');
+  const retryDeep = esc({ last_tier: 'deep', failures_at_last_tier: 1 });
+  assert.equal(retryDeep.human, false);
+  assert.equal(retryDeep.tier, 'deep');
+});
+
+test('escalation: threshold N comes from config', () => {
+  const cfg = { ...CFG, limits: { ...CFG.limits, verifyFailuresPerTier: 3 } };
+  assert.equal(R.escalate({ stage: 'developer', last_tier: 'light', failures_at_last_tier: 2 }, cfg, []).tier, 'light');
+  assert.equal(R.escalate({ stage: 'developer', last_tier: 'light', failures_at_last_tier: 3 }, cfg, []).tier, 'standard');
+});
+
+test('escalation: missing and extreme counts (Review Focus 5)', () => {
+  assert.equal(esc({ last_tier: 'standard' }).tier, 'standard');
+  assert.ok(esc({ last_tier: 'standard' }).reason.includes('retry at same tier'));
+  assert.equal(esc({ last_tier: 'light', failures_at_last_tier: 9999 }).tier, 'standard');
+  assert.equal(esc({ last_tier: 'deep', failures_at_last_tier: 9999 }).human, true);
+});
+
+test('escalation: floors and risk minimums still apply to the escalated tier', () => {
+  const d = R.escalate({ stage: 'developer', last_tier: 'light', failures_at_last_tier: 0 }, CFG, ['auth']);
+  assert.equal(d.tier, 'standard');
+  assert.deepEqual(d.lens, ['security']);
+  assert.equal(R.escalate({ stage: 'analyst', last_tier: 'light', failures_at_last_tier: 0 }, CFG, []).tier, 'standard');
+});
+
+// ---------- fallback ----------
+const fb = (card, flags = [], cause = 'no key') => R.fallbackDecision(card, CFG, flags, cause);
+
+test('fallback: tiers come from fallbackTiers; reason is exactly the cause', () => {
+  const d = fb({ stage: 'developer' });
+  assert.equal(d.tier, 'standard');
+  assert.equal(d.model, 'sonnet');
+  assert.equal(d.source, 'fallback');
+  assert.equal(d.reason, 'no key');
+  assert.ok(!('confidence' in d));
+  assert.equal(fb({ stage: 'planner' }).tier, 'deep');
+  assert.equal(fb({ stage: 'triage' }).tier, 'light');
+  assert.equal(fb({ stage: 'reviewer-code' }).tier, 'standard');
+});
+
+test('fallback: risk minimums raise the tier', () => {
+  assert.equal(fb({ stage: 'triage', files_touched: 1 }, ['auth']).tier, 'standard');
+});
+
+test('fallback lane (triage): risk flag, keyword, size', () => {
+  assert.equal(fb({ stage: 'triage', summary: 'rename a variable', files_touched: 1 }).lane, 'QUICK');
+  assert.equal(fb({ stage: 'triage', summary: 'rename a variable', files_touched: 3 }).lane, 'FULL');
+  assert.equal(fb({ stage: 'triage', summary: 'rename a variable' }).lane, 'FULL');
+  assert.equal(fb({ stage: 'triage', summary: 'Drop table users', files_touched: 1 }).lane, 'FULL');
+  assert.equal(fb({ stage: 'triage', summary: 'rotate the SECRET', files_touched: 1 }).lane, 'FULL');
+  assert.equal(fb({ stage: 'triage', summary: 'fix typo', files_touched: 1 }, ['pii']).lane, 'FULL');
+  assert.equal(fb({ stage: 'developer', summary: 'drop everything', files_touched: 9 }).lane, null);
+});
+
+test('FALLBACK_CAUSES lists the documented reasons', () => {
+  assert.ok(R.FALLBACK_CAUSES.includes('no key'));
+  assert.ok(R.FALLBACK_CAUSES.includes('bad response'));
+});
