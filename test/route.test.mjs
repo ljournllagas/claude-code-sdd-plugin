@@ -78,3 +78,43 @@ test('invalid JSON and non-object JSON are errors', () => {
   assert.match(R.loadConfig(mkProj(null, '{ nope')).error, /invalid JSON/);
   assert.match(R.loadConfig(mkProj(null, '[]')).error, /must be a JSON object/);
 });
+
+// ---------- risk flags ----------
+const RP = R.defaultConfig().riskPaths;
+
+test('globToRegExp: ** crosses directories, * and ? do not', () => {
+  assert.ok(R.globToRegExp('**/a/**').test('a/b'));
+  assert.ok(R.globToRegExp('**/a/**').test('x/y/a/b/c'));
+  assert.ok(!R.globToRegExp('**/a/**').test('xa/b'));
+  assert.ok(R.globToRegExp('x?y').test('xzy'));
+  assert.ok(!R.globToRegExp('x?y').test('x/y'));
+  assert.ok(R.globToRegExp('*.sql').test('a.sql'));
+  assert.ok(!R.globToRegExp('*.sql').test('d/a.sql'));
+  assert.ok(R.globToRegExp('**/*.sql').test('d/e/a.sql'));
+  assert.ok(R.globToRegExp('a.b').test('a.b'));
+  assert.ok(!R.globToRegExp('a.b').test('axb'));
+});
+
+test('riskFlags: default categories match their globs', () => {
+  assert.deepEqual(R.riskFlags(['src/auth/token.ts'], RP), ['auth']);
+  assert.deepEqual(R.riskFlags(['app/billing/charge.py'], RP), ['money']);
+  assert.deepEqual(R.riskFlags(['db/migrations/001_init.sql'], RP), ['schema']);
+  assert.deepEqual(R.riskFlags(['docs/openapi.yaml'], RP), ['contract']);
+  assert.deepEqual(R.riskFlags(['src/users/profile.ts'], RP), ['pii']);
+  assert.deepEqual(R.riskFlags(['README.md', 'src/util/strings.ts'], RP), []);
+});
+
+test('riskFlags: Windows separators, case, ./ prefix (Review Focus 1)', () => {
+  assert.deepEqual(R.riskFlags(['src\\Auth\\Login.ts'], RP), ['auth']);
+  assert.deepEqual(R.riskFlags(['.\\DB\\Migrations\\x.SQL'], RP), ['schema']);
+  assert.deepEqual(R.riskFlags(['./src/billing/a.ts'], RP), ['money']);
+});
+
+test('riskFlags: several categories, config order, no duplicates', () => {
+  assert.deepEqual(R.riskFlags(['src/auth/a.ts', 'src/auth/b.ts', 'src/billing/c.ts'], RP), ['auth', 'money']);
+});
+
+test('riskFlags: undefined or empty paths give no flags', () => {
+  assert.deepEqual(R.riskFlags(undefined, RP), []);
+  assert.deepEqual(R.riskFlags([], RP), []);
+});

@@ -127,6 +127,32 @@ export function loadConfig(projectDir) {
 }
 
 // ==== RISK FLAGS ====
+export function normalizePath(p) {
+  return String(p).replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase();
+}
+
+export function globToRegExp(glob) {
+  const g = String(glob).toLowerCase();
+  let re = '';
+  for (let i = 0; i < g.length; ) {
+    if (g.startsWith('**/', i)) { re += '(?:.*/)?'; i += 3; }
+    else if (g.startsWith('**', i)) { re += '.*'; i += 2; }
+    else if (g[i] === '*') { re += '[^/]*'; i += 1; }
+    else if (g[i] === '?') { re += '[^/]'; i += 1; }
+    else { re += g[i].replace(/[.+^${}()|[\]\\]/g, '\\$&'); i += 1; }
+  }
+  return new RegExp(`^${re}$`);
+}
+
+export function riskFlags(paths, riskPaths) {
+  const norm = (Array.isArray(paths) ? paths : []).map(normalizePath);
+  const flags = [];
+  for (const [cat, def] of Object.entries(riskPaths)) {
+    const res = def.globs.map(globToRegExp);
+    if (norm.some((p) => res.some((r) => r.test(p)))) flags.push(cat);
+  }
+  return flags;
+}
 // ==== TYPESAFE WIRE ====
 // ==== DECISIONS ====
 // ==== LOG AND CARD ====
