@@ -56,6 +56,13 @@ test('subdirectories: prefixed commands, quoting for spaces, skip list and hidde
   assert.equal(candidates[2].verify.test, 'cd "my svc" && go test ./...');
 });
 
+test('a manifest with a UTF-8 byte order mark is still read', () => {
+  const { candidates } = detect(mkRepo({ 'package.json': '﻿{"scripts":{"test":"t","lint":"l"}}' }));
+  assert.equal(candidates[0].verify.test, 'npm test');
+  assert.equal(candidates[0].verify.lint, 'npm run lint');
+  assert.equal(candidates[0].verify.build, null);
+});
+
 test('two manifests in one directory give two candidates', () => {
   const { candidates } = detect(mkRepo({ 'pyproject.toml': '[tool.pytest]', 'requirements.txt': 'pytest' }));
   assert.deepEqual(candidates.map((c) => c.source).sort(), ['pyproject.toml', 'requirements.txt']);

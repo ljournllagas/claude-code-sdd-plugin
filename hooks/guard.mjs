@@ -9,23 +9,26 @@ export const DEFAULTS = { specs: 'docs/sdd/specs', plans: 'docs/sdd/plans', acti
 const GUARDED = ['Edit', 'Write', 'NotebookEdit'];
 const ALLOW = { deny: false };
 
-const readJson = (p) => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
+const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
+const readText = (p) => stripBom(readFileSync(p, 'utf8'));
+const readJson = (p) => { try { return JSON.parse(readText(p)); } catch { return null; } };
 const norm = (p) => p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
 const str = (v, d) => (typeof v === 'string' && v.length > 0 ? v : d);
 
-export function evaluate(input, now = Date.now()) {
+export function evaluate(input, now = Date.now(), env = process.env) {
   try {
     if (input === null || typeof input !== 'object' || Array.isArray(input)) return ALLOW;
     if (!GUARDED.includes(input.tool_name)) return ALLOW;
     if (input[SUBAGENT_FIELD]) return ALLOW;
     const target = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
     if (typeof target !== 'string' || target.length === 0) return ALLOW;
-    const cwd = typeof input.cwd === 'string' && input.cwd.length > 0 ? input.cwd : process.cwd();
+    // The project root: the input cwd can follow the shell's working directory, CLAUDE_PROJECT_DIR does not.
+    const cwd = str(env?.CLAUDE_PROJECT_DIR, str(input.cwd, process.cwd()));
 
     // Absent config → defaults. Present but unreadable, unparseable or not an object → fail open (spec AC-31).
     let cfg = {};
     try {
-      cfg = JSON.parse(readFileSync(resolve(cwd, 'sdd.config.json'), 'utf8'));
+      cfg = JSON.parse(readText(resolve(cwd, 'sdd.config.json')));
     } catch (e) {
       if (e?.code !== 'ENOENT') return ALLOW;
     }

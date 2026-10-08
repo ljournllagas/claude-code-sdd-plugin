@@ -25,6 +25,26 @@ export function mergeConfig(base, over) {
   return out;
 }
 
+// The key is sent to the endpoint, so plain http is allowed only to this machine.
+const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
+function isSafeEndpoint(v) {
+  if (typeof v !== 'string') return false;
+  let u;
+  try { u = new URL(v); } catch { return false; }
+  return u.protocol === 'https:' || (u.protocol === 'http:' && LOCAL_HOSTS.includes(u.hostname));
+}
+
+// A cloned repository's config chooses where the key goes and which variable is sent: say so when it differs.
+export function routerWarnings(cfg) {
+  const def = defaultConfig().router;
+  const out = [];
+  if (cfg.router.endpoint !== def.endpoint) out.push(`sdd.config.json: router.endpoint is not the default (${cfg.router.endpoint})`);
+  if (cfg.router.apiKeyEnv !== def.apiKeyEnv) out.push(`sdd.config.json: router.apiKeyEnv is not the default (${cfg.router.apiKeyEnv}); that variable's value is sent as the bearer token`);
+  return out;
+}
+
+const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
+
 export function validateConfig(cfg) {
   const errors = [];
   const warnings = [];
@@ -69,7 +89,7 @@ export function validateConfig(cfg) {
     if (typeof r.enabled !== 'boolean') err('router.enabled', 'must be true or false');
     if (!isStr(r.apiKeyEnv)) err('router.apiKeyEnv', 'must be a non-empty string');
     if (!isStr(r.model)) err('router.model', 'must be a non-empty string');
-    if (!isStr(r.endpoint) || !/^https?:\/\//.test(r.endpoint)) err('router.endpoint', 'must be an http(s) URL');
+    if (!isSafeEndpoint(r.endpoint)) err('router.endpoint', 'must be https (http only for localhost)');
     if (!isPosInt(r.timeoutMs)) err('router.timeoutMs', 'must be a positive integer');
     if (!isUnit(r.confidenceThreshold)) err('router.confidenceThreshold', 'must be a number in [0,1]');
     if (!isUnit(r.noulThreshold)) err('router.noulThreshold', 'must be a number in [0,1]');
@@ -116,13 +136,14 @@ export function loadConfig(projectDir) {
   let merged = def;
   if (existsSync(file)) {
     let parsed;
-    try { parsed = JSON.parse(readFileSync(file, 'utf8')); }
+    try { parsed = JSON.parse(stripBom(readFileSync(file, 'utf8'))); }
     catch { return { ok: false, error: 'sdd.config.json: invalid JSON', config: def, warnings: [] }; }
     if (!isPlainObject(parsed)) return { ok: false, error: 'sdd.config.json: must be a JSON object', config: def, warnings: [] };
     merged = mergeConfig(def, parsed);
   }
-  const { errors, warnings } = validateConfig(merged);
-  if (errors.length) return { ok: false, error: `sdd.config.json: ${errors[0]}`, config: def, warnings };
+  const v = validateConfig(merged);
+  const warnings = v.warnings.map((w) => `sdd.config.json: ${w}`);
+  if (v.errors.length) return { ok: false, error: `sdd.config.json: ${v.errors[0]}`, config: def, warnings };
   return { ok: true, config: merged, warnings };
 }
 
@@ -486,7 +507,7 @@ export async function callTypeSafe(cfg, apiKey, state, { fetchFn = fetch, sleepF
 export async function route(card, { projectDir, env = process.env, fetchFn, sleepFn } = {}) {
   const loaded = loadConfig(projectDir);
   const cfg = loaded.config;
-  const warnings = [...loaded.warnings];
+  const warnings = [...loaded.warnings, ...routerWarnings(cfg)];
   if (!loaded.ok) warnings.push(loaded.error);
   const c = card.summary === undefined ? card : { ...card, summary: truncateChars(card.summary, cfg.router.maxSummaryChars) };
   let flags = [];
@@ -528,7 +549,7 @@ async function main(argv) {
   const err = (m) => process.stderr.write(`${m}\n`);
   if (argv.includes('--check-config')) {
     const l = loadConfig(process.cwd());
-    l.warnings.forEach((w) => err(`sdd route: warning: ${w}`));
+    [...l.warnings, ...routerWarnings(l.config)].forEach((w) => err(`sdd route: warning: ${w}`));
     if (!l.ok) { err(l.error); return 1; }
     process.stdout.write('ok\n');
     return 0;

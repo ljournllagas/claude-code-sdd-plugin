@@ -31,7 +31,7 @@ function candidatesIn(dirAbs, dirRel, detectors) {
       const re = nameRegExp(pattern);
       for (const name of names.filter((n) => re.test(n))) {
         let content = '';
-        try { content = readFileSync(join(dirAbs, name), 'utf8'); } catch { /* unreadable manifest: conditions fail */ }
+        try { content = readFileSync(join(dirAbs, name), 'utf8').replace(/^﻿/, ''); } catch { /* unreadable manifest: conditions fail */ }
         const verify = {};
         for (const k of KEYS) {
           let cmd = resolveCommand(det.verify[k], content);

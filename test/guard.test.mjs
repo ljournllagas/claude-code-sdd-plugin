@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluate, DEFAULTS, SUBAGENT_FIELD } from '../hooks/guard.mjs';
 
+// The guard prefers CLAUDE_PROJECT_DIR; these tests pass the project as `cwd`, so never inherit one from the outer session.
+delete process.env.CLAUDE_PROJECT_DIR;
 const GUARD = fileURLToPath(new URL('../hooks/guard.mjs', import.meta.url));
 const NOW = Date.parse('2026-10-08T12:00:00Z');
 const iso = (hoursAgo) => new Date(NOW - hoursAgo * 3600e3).toISOString();
@@ -131,7 +133,9 @@ test('guard defaults equal the shipped default config', () => {
 test('hook process: deny JSON on stdout, silent allow, exit 0 on garbage', () => {
   // The spawned process uses the real clock, so the marker must be fresh in real time.
   const d = proj({ markerRaw: JSON.stringify({ slug: 's', lane: 'FULL', stage: 'executing', updated: new Date().toISOString() }) });
-  const run = (stdin) => spawnSync(process.execPath, [GUARD], { input: stdin, encoding: 'utf8' });
+  const env = { ...process.env };
+  delete env.CLAUDE_PROJECT_DIR;
+  const run = (stdin) => spawnSync(process.execPath, [GUARD], { input: stdin, encoding: 'utf8', env });
   const denied = run(JSON.stringify(call(d, join(d, 'src', 'app.js'))));
   assert.equal(denied.status, 0);
   const out = JSON.parse(denied.stdout);
@@ -146,6 +150,41 @@ test('hook process: deny JSON on stdout, silent allow, exit 0 on garbage', () =>
     assert.equal(r.status, 0);
     assert.equal(r.stdout, '');
   }
+});
+
+test('config and marker with a UTF-8 byte order mark are read (ttl honoured, not fail-open)', () => {
+  const withCfg = (ago) => {
+    const d = proj({ ago });
+    writeFileSync(join(d, 'sdd.config.json'), '﻿' + JSON.stringify({ guard: { ttlHours: 2 } }));
+    return d;
+  };
+  const fresh = withCfg(1);
+  const r = ev(call(fresh, join(fresh, 'src', 'a.js')));
+  assert.equal(r.deny, true);
+  assert.ok(r.message.includes('after 2h of inactivity'));
+  const stale = withCfg(3);
+  assert.equal(ev(call(stale, join(stale, 'src', 'a.js'))).deny, false);
+  const bomMarker = proj({ markerRaw: '﻿' + JSON.stringify({ slug: 's', lane: 'FULL', stage: 'executing', updated: iso(1) }) });
+  assert.equal(ev(call(bomMarker, join(bomMarker, 'src', 'a.js'))).deny, true);
+});
+
+test('CLAUDE_PROJECT_DIR wins over the input cwd; empty falls back to cwd', () => {
+  const d = proj();
+  const elsewhere = mkdtempSync(join(tmpdir(), 'sdd elsewhere '));
+  const r = evaluate(call(elsewhere, join(d, 'src', 'app.js')), NOW, { CLAUDE_PROJECT_DIR: d });
+  assert.equal(r.deny, true);
+  assert.ok(r.message.includes('may not edit src/app.js.'), r.message);
+  assert.equal(evaluate(call(elsewhere, 'src/app.js'), NOW, { CLAUDE_PROJECT_DIR: d }).deny, true);
+  assert.equal(evaluate(call(elsewhere, join(d, 'CONTEXT.md')), NOW, { CLAUDE_PROJECT_DIR: d }).deny, false);
+  // empty CLAUDE_PROJECT_DIR → the input cwd is the root; it has no marker, so nothing is guarded
+  assert.equal(evaluate(call(elsewhere, join(d, 'src', 'app.js')), NOW, { CLAUDE_PROJECT_DIR: '' }).deny, false);
+  assert.equal(evaluate(call(d, join(d, 'src', 'app.js')), NOW, { CLAUDE_PROJECT_DIR: '' }).deny, true);
+  // the hook process reads it from its environment
+  const live = proj({ markerRaw: JSON.stringify({ slug: 's', lane: 'FULL', stage: 'executing', updated: new Date().toISOString() }) });
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: live };
+  const out = spawnSync(process.execPath, [GUARD], { input: JSON.stringify(call(elsewhere, join(live, 'src', 'app.js'))), encoding: 'utf8', env });
+  assert.equal(out.status, 0);
+  assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, 'deny');
 });
 
 test('hooks.json registers the guard for Edit|Write|NotebookEdit with a quoted plugin-root path', () => {

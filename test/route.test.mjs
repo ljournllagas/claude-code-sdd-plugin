@@ -47,7 +47,7 @@ test('project config overrides field by field', () => {
 test('unknown top-level key is a warning, not an error', () => {
   const l = R.loadConfig(mkProj({ foo: 1 }));
   assert.equal(l.ok, true);
-  assert.ok(l.warnings.some((w) => w.includes('foo')));
+  assert.ok(l.warnings.some((w) => w.startsWith('sdd.config.json: ') && w.includes('foo')));
 });
 
 const invalid = [
@@ -81,6 +81,23 @@ for (const [field, over] of invalid) {
 test('invalid JSON and non-object JSON are errors', () => {
   assert.match(R.loadConfig(mkProj(null, '{ nope')).error, /invalid JSON/);
   assert.match(R.loadConfig(mkProj(null, '[]')).error, /must be a JSON object/);
+});
+
+test('config with a UTF-8 byte order mark loads', () => {
+  const l = R.loadConfig(mkProj(null, '﻿' + JSON.stringify({ router: { timeoutMs: 321 } })));
+  assert.equal(l.ok, true, l.error);
+  assert.equal(l.config.router.timeoutMs, 321);
+});
+
+test('router.endpoint must be https; plain http only for localhost', () => {
+  for (const endpoint of ['http://example.com/v1', 'http://localhost.evil.test/x', 'http://127.0.0.1.evil.test/x', 'ftp://example.com/x', 'not a url']) {
+    const l = R.loadConfig(mkProj({ router: { endpoint } }));
+    assert.equal(l.ok, false, endpoint);
+    assert.equal(l.error, 'sdd.config.json: router.endpoint: must be https (http only for localhost)', endpoint);
+  }
+  for (const endpoint of ['https://example.com/v1', 'http://127.0.0.1:8080/v1', 'http://localhost:9/x', 'http://[::1]:9/x']) {
+    assert.equal(R.loadConfig(mkProj({ router: { endpoint } })).ok, true, endpoint);
+  }
 });
 
 // ---------- risk flags ----------
@@ -503,6 +520,25 @@ test('route: no key → fallback "no key"; stdout is exactly one JSON line; exit
   assert.equal(d.reason, 'no key');
   assert.equal(d.tier, 'standard');
   assert.equal(d.model, 'sonnet');
+  assert.equal(r.stderr, ''); // the shipped endpoint and key variable raise no warning
+});
+
+test('route: a non-default endpoint or key variable is warned about; the key value never appears', async () => {
+  const OTHER = 'SDD_TEST_OTHER_KEY';
+  await withMock(ok200(rawOf()), { router: { apiKeyEnv: OTHER } }, async ({ mock, dir }) => {
+    const r = await runRoute({ stdin: cardText(), cwd: dir, env: { [OTHER]: KEY } });
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(JSON.parse(r.stdout).source, 'typesafe');
+    assert.ok(r.stderr.includes(`sdd route: warning: sdd.config.json: router.endpoint is not the default (${mock.url})`), r.stderr);
+    assert.ok(r.stderr.includes(`sdd route: warning: sdd.config.json: router.apiKeyEnv is not the default (${OTHER}); that variable's value is sent as the bearer token`), r.stderr);
+    const check = await runRoute({ args: ['--check-config'], cwd: dir, env: { [OTHER]: KEY } });
+    assert.equal(check.code, 0);
+    assert.ok(check.stderr.includes('router.endpoint is not the default'), check.stderr);
+    assert.ok(check.stderr.includes('router.apiKeyEnv is not the default'), check.stderr);
+    for (const text of [r.stdout, r.stderr, check.stdout, check.stderr]) assert.ok(!text.includes(KEY));
+  });
+  const out = await R.route({ stage: 'developer' }, { projectDir: mkProj({ router: { enabled: false, apiKeyEnv: 'X_KEY' } }), env: { X_KEY: KEY } });
+  assert.deepEqual(out.warnings, ["sdd.config.json: router.apiKeyEnv is not the default (X_KEY); that variable's value is sent as the bearer token"]);
 });
 
 test('route: router disabled → "disabled" even with a key', async () => {
