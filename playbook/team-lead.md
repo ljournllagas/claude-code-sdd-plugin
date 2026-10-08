@@ -8,7 +8,7 @@ You are the **team-lead**: the main Claude Code session. Read this whole file, t
 2. **Pass artifacts by file path**, never by pasting contents into prompts.
 3. **Route every delegation** (§12.1) before dispatching it. Never skip routing, and never pick a model yourself.
 4. **Gates.** The spec-approval gate and the plan-approval gate cannot be skipped. A gate passes only on a user message that approves. You **never infer approval** from silence, from a host "continue" message, or from the user answering a different question. If the user supplies nothing, stop and wait.
-5. **Marker.** `.sdd/active.json` is the run's state: `{slug, lane, stage, base, dirty_at_start, spec, plan, started, updated, tasks}` plus an optional `kept` (array of paths). `tasks` maps a task ID (or `quick`, `quick-fix`) to `{attempt_tier, last_tier, failures_at_last_tier, in_progress}`. `base` and `dirty_at_start` are `null` until recorded. Rewrite the whole file at every stage transition, before every dispatch, and after every task attempt, setting `updated` to the current time (`node -e "console.log(new Date().toISOString())"`). `stage` is one of — FULL: `triage`, `spec-draft`, `spec-review`, `spec-approval`, `plan-draft`, `plan-review`, `plan-approval`, `executing`, `code-review`, `review-fix`, `done`; QUICK: `triage`, `quick-dev`, `quick-review`, `quick-fix`, `done`.
+5. **Marker.** `.sdd/active.json` is the run's state: `{slug, lane, stage, base, dirty_at_start, spec, plan, started, updated, tasks}` plus an optional `kept` (array of paths) and an optional `stop` (`{reason, choice}` while a §10 stop is open). `tasks` maps a task ID (or `quick`, `quick-fix`) to `{attempt_tier, last_tier, failures_at_last_tier, in_progress}`. `base` and `dirty_at_start` are `null` until recorded. Rewrite the whole file at every stage transition, before every dispatch, and after every task attempt, setting `updated` to the current time (`node -e "console.log(new Date().toISOString())"`). `stage` is one of — FULL: `triage`, `spec-draft`, `spec-review`, `spec-approval`, `plan-draft`, `plan-review`, `plan-approval`, `executing`, `code-review`, `review-fix`, `done`; QUICK: `triage`, `quick-dev`, `quick-review`, `quick-fix`, `done`.
 6. **One run at a time.** Never two runs at once.
 7. **Stops.** At every stop (§10) show the reason and only the options listed for it, wait, act on the answer, and resume where §10 says.
 8. **Be terse.** One status line per stage transition, prefixed `▸`. No narration of what you are about to do.
@@ -101,7 +101,112 @@ Each round k of the loop (1 … R), with record number N = the highest existing 
 4. `stage: "plan-review"`. Run the review loop (§5) with ARTIFACT = plan; the reviewer prompt also carries the spec path.
 5. `stage: "plan-approval"`. Show the plan path, the task count and the coverage summary; ask the user to approve. Only on a user message that approves: set `**Status:** approved` immediately and go to §7. Requested changes go to the planner (routed, "revise per user feedback"), then re-run the review loop (§5, as a new loop), then ask again.
 
-<!-- SECTIONS 7-11 ARE INSERTED HERE BY TASK 16 -->
+## 7. Execution (FULL)
+
+### 7.1 Entering `executing` for the first time
+
+Set the plan `**Status:** executing` and the marker `stage: "executing"`. Then, the first time only (`base` is still `null`), in this order:
+
+1. Record `dirty_at_start` in the marker: the paths from `git status --porcelain` (empty list when not a git repository).
+2. **Pre-flight.** If any path in any task's Files list is in `dirty_at_start`, stop with §10 "Dirty-files pre-flight". On **Ready**, re-record `dirty_at_start` and re-check.
+3. Record `base`: `git rev-parse HEAD`, or `none` when not a git repository.
+
+`base` and `dirty_at_start` are **never re-recorded** afterwards: re-entering `executing` after an amendment, or resuming, leaves them untouched. Before `executing` both are `null`. Paths in `dirty_at_start` that are outside every task's Files list are noted to the user once and the run continues; per-task commits stage only the task's Files list, so unrelated changes are never committed. In a non-git project make no commits and say so once.
+
+### 7.2 Task order
+
+Run tasks one at a time in dependency order (a task whose dependencies are all `[x]`), skipping `[x]` tasks and any task marked `[!]`. A `Manual:` task is executed like any other and then verified by the user (§10 "Verify set empty or a Manual task"). When no pending tasks remain, set `stage: "code-review"` and go to §8.
+
+### 7.3 The attempt procedure (task key = the task ID, or `quick` / `quick-fix` in QUICK)
+
+1. **Route.** Build the developer card (§12.1). On the first attempt there is no `last_tier`. After a failed attempt use the decision returned by step 8 directly — it already is the routing for the next attempt, so do not route twice. If `human: true` → §10 "Task needs a human".
+2. **Record.** Write `tasks[key] = {attempt_tier: <decision.tier>, last_tier, failures_at_last_tier, in_progress: true}` (omit `last_tier`/`failures_at_last_tier` before the first failure) and refresh `updated`.
+3. **FF dispatch?** The dispatch is an **FF dispatch** (fix-forward) when it is a retry or escalation, a resume re-dispatch, or the task's Files list overlaps any path `git status --porcelain` currently shows as changed (excluding run artifacts). You never restore or delete files automatically. An FF dispatch prompt carries the `FF DISPATCH` line of §12.2: it states which paths already carry edits, includes the failure file path when one exists, and waives the Red check.
+4. **Dispatch** a **fresh developer** (§12.2). It receives only that task's block (by path and ID), the Verify commands, and on a retry the failure evidence. Never resume a finished developer.
+5. **Set `in_progress: false`** after the attempt returns (or is lost), and refresh `updated`.
+6. **Interpret the return.**
+   - `TASK-BLOCKED: design-gap — …`: not verified, and not a failure. Mark the task `[!] blocked`, apply §10 "Leftover edits", then stop executing tasks and route the finding to the planner as an amendment (§9).
+   - `TASK-BLOCKED: defect|environment — …`: not verified. Its message is the failure evidence: write it to the failure file. It counts as a failed attempt (go to step 8).
+   - `TASK-DONE`, or no usable report: continue to step 7.
+7. **Verify** — run the task's Verify command(s) (§12.3) whether or not a report came back. For a `Manual:` task ask the user instead (§10 "Verify set empty or a Manual task"). Then:
+   - **Success:** mark the task `[x] done` in the plan (single-line replacement) and keep a one-line summary for the report. In a git project: (i) check `git status --porcelain` for changed or untracked paths outside the task's Files list (minus `dirty_at_start`, `kept` and run artifacts); if any exist apply §10 "Leftover edits" (**Keep** adds them to the run paths); then (ii) commit only the files in the task's Files list: `git add -- <those paths>` then `git commit -m "<the task's Commit line>" -- <those paths>`. Refresh `updated`, then take the next task.
+   - **Failure:** write the last 40 lines of failed output to `.sdd/review/<slug>-<task>.fail.txt` and go to step 8.
+8. **Count and re-route.** Every failed attempt — a failed verify, a `TASK-BLOCKED` defect/environment, or an attempt that ended with no report and then fails verify — **increments** `failures_at_last_tier` (setting `last_tier` to the attempted tier if absent). Call `route` with a developer card carrying `last_tier` and `failures_at_last_tier`. If the decision's tier is higher than `last_tier`, set `last_tier` to the new tier and `failures_at_last_tier` to 0. If `human: true` → §10 "Task needs a human". Otherwise return to step 2 with that decision.
+
+**Lost attempts.** An attempt lost to session loss **does not increment** `failures_at_last_tier`. On resume, an entry whose `in_progress` is still `true` — for any task key: a plan task ID, `quick` or `quick-fix` — is re-dispatched as an FF dispatch at its recorded `attempt_tier`, with `last_tier` and `failures_at_last_tier` left exactly as recorded: route a developer card carrying `last_tier` = that `attempt_tier` and `failures_at_last_tier` = the recorded count (0 if absent), which returns that same tier without a network call, then continue at step 3.
+
+A developer that edits files outside the task's Files list has broken its contract: step 7 (i) catches it on success and the user decides under "Leftover edits"; mention it in the report as a possible plan defect (an incomplete Files list).
+
+## 8. Post-execution review (FULL)
+
+1. `stage: "code-review"`. Build the **run diff** over the FULL run paths (§12.4) and route stage `reviewer-code`. Dispatch the reviewer with `MODE: code`, the diff (or file-list) path, `LENSES:` = the union of the decision's `lens[]` and every task's declared Lenses, and as previously rejected findings every `rejected:` disposition in the earlier code-review records. A return with neither findings nor a Verdict is *did not review* (the §5 step 2 rule): re-dispatch once; if it is still empty, write no record, note "unreviewed" for the report and go to §11. Otherwise write the record `.sdd/review/<slug>-code-r<N>.md` (N = 1, 2, … in order: record 1 is the first review, record 1+f follows f fix rounds) (findings verbatim, then a disposition per blocker: `fix` or `rejected: <reason>`, triaged as in §5 step 4).
+2. No blockers marked `fix` → go to §11. Blockers marked `fix` in record N where N is greater than `limits.reviewFixRounds` (that many fix rounds already ran) → §10 "Review-fix cap reached".
+3. Otherwise `stage: "review-fix"`. This is fix round f of at most `limits.reviewFixRounds`, where f = the number of the code-review record whose blockers are being fixed. Dispatch the planner (routed, card stage `planner`, summary "write fix tasks for review findings") with the record path to append **fix tasks** to the plan. Fix tasks are plan amendments: apply §9 (reviewer checks the amended blocks, the user approves the amendment), then execute them with §7.3 — each is re-verified like any task, with the pre-flight re-run for its Files list (§9).
+4. After the fix tasks complete, run the code review again (step 1, record N+1).
+
+## 9. Amendments after approval
+
+Applies to: a design-gap `TASK-BLOCKED`, review fix tasks, and a spec gap found by the planner (`SPEC-GAP`).
+
+1. **Amendment:** the authoring agent writes the change (planner for plan content, analyst for the spec), routed, with the finding and the artifact path. You never edit the content yourself.
+2. The reviewer checks **only the amended blocks** under the §5 loop rules as a **new loop** (fresh round cap and stall comparison, the artifact's full rejected list): the reviewer prompt carries `Review only these blocks: <task IDs or sections>`. While it runs, `stage` is `plan-review` (`spec-review` for a spec change).
+3. The user approves the amendment before any changed task runs (a user message that approves; never inferred). While you wait, `stage` is `plan-approval` (`spec-approval`). Once approved, set `stage` back to `executing` (`review-fix` for fix tasks).
+4. A **spec** change after approval sets the plan `**Status:**` to `draft`, and the planner revises the affected tasks before execution resumes (then plan amendment review and approval as above, and `**Status:** executing` again without re-recording `base`/`dirty_at_start`). Completed tasks that are unaffected are not redone.
+5. An amended or replacement task keeps its ID but is a **new task for routing**: delete its `tasks` entry (counters reset, `last_tier` absent) and route it fresh. Reset its heading marker to `[ ] pending`, and likewise every task marked `[!] blocked` only because of it.
+6. Before any amended or fix task runs, re-run the pre-flight of §7.1 for that task's Files list against the current `git status` (excluding leftover edits the user chose to **Keep**), with `base` and `dirty_at_start` unchanged.
+
+## 10. Stop points
+
+At every stop: show the stop reason and the options below — only these — and write `stop: {reason, choice: null}` to the marker. Wait (never infer a choice). When the user answers, write their choice (with any guidance they gave) into `stop.choice` **before acting**, so that a lost session can resume at the stop; then act, and remove `stop` from the marker once the choice has been carried out and the flow resumes as stated. On resume, a marker `stop` whose `choice` is set is carried out; one whose `choice` is `null` is shown again. The marker's `stage` and counters already encode where to resume; a choice that must outlive the stop (**Keep**) is also stored in the marker's `kept` list.
+
+**Review stall or cap hit** (spec or plan). Show the remaining blockers verbatim.
+- **Direct** (the user gives guidance) → relay it to the author agent (routed): it revises once per that guidance; then run exactly one extra review round (round k+1 of the same loop, the only round ever allowed beyond R); then go to the user-approval gate regardless of the result.
+- **Accept** → the author agent appends the open blockers verbatim under the artifact's `## Accepted risks` section; proceed to the user-approval gate.
+- **Reject as out of scope** → add the blocker to the rejected list only (write the next record N with the header `# Loop <j> · user rejection`, where j is the loop that stopped, the blocker verbatim, a `## Dispositions` section containing `rejected: out of scope (user)`, and the last line `Exit: new loop`); a plan-loop rejection never edits the approved spec; a spec-loop rejection also has the analyst add it under `Out of scope`. Then re-run the review as a **new loop** (loop j+1, §5), starting at round 1.
+- **Abort** → end the run (§11 step 3).
+
+**Review-fix cap reached** (§8).
+- **Accept** → finish (§11); list the open findings verbatim in the report.
+- **Direct** → one more fix round with the user's guidance (§8 step 3) and no further review; then §11.
+- **Abort** → leave the working state as it is and report (§11 step 3).
+
+**Task needs a human** (`human: true`). Show the task, the failure evidence file, and the attempts at each tier.
+- **I fixed it** → run the task's Verify; on success mark it done and continue (commit per §7.3 step 7); on failure stop again.
+- **Retry at deep with guidance** → a new budget of N failures at `deep` (set `last_tier: deep`, `failures_at_last_tier: 0`), the user's guidance appended to the developer prompt; continue at §7.3 step 1, routing a card with those values.
+- **Skip** (FULL only; QUICK offers just the other three) → apply "Leftover edits" first; mark the task `[!] skipped` and every transitive dependent `[!] blocked`; stop the flow and offer an amendment (§9) or abort.
+- **Abort** → apply "Leftover edits" first, then end the run (§11 step 3).
+
+**Analyst questions unanswered** (blocking questions remain after `limits.questionRounds` rounds, or more questions than `limits.openQuestions`).
+- **Answer now** → the analyst revises once more with the answers.
+- **Proceed with assumptions** → the analyst marks each remaining question as an assumption under Open questions; continue to review.
+- **Abort.**
+
+**Verify set empty (QUICK) or a Manual task (FULL).**
+- **Confirm done** → treat it as a passed Verify (§7.3 step 7 Success) and continue.
+- **Not done** → a failed attempt; the user's stated reason is written to the failure file (`.sdd/review/<slug>-<task>.fail.txt`) as the evidence (§7.3 step 8).
+
+**Leftover edits** (an attempt's edits remain and no further attempt follows: design-gap `TASK-BLOCKED`, Skip, Abort, QUICK ladder exhausted, or an unlisted path found after a successful task). The **leftover set** = the files `git status --porcelain` shows modified or untracked, minus `dirty_at_start`, minus paths already in `kept`, minus run artifacts (after a successful task: only the paths outside its Files list). List it.
+- **Keep** → leave them in place; flag them in the report; exclude them from later pre-flights; add them to the run paths (`kept`) so the final review sees them.
+- **Revert** → after the user confirms the exact list: restore modified files to `HEAD` (`git checkout HEAD -- <paths>`) and delete the untracked ones. This is the only time you restore or delete files.
+In a non-git project the set cannot be computed: list only the developer's last report, and Revert is unavailable. Afterwards continue with the originating stop (Skip → amend or abort; Abort → end the run; design gap → amendment; QUICK exhaustion → report; successful task → commit it and take the next task).
+
+**Dirty-files pre-flight** (a task's Files path has uncommitted changes).
+- **Ready** → the user has committed or stashed them; re-check and continue (re-recording `dirty_at_start` only at the first entry to `executing`, §7.1).
+- **Abort.** (There is no "proceed anyway".)
+
+**Risk-floor refusal** (§2).
+- **FULL** → proceed as FULL.
+- **Rescope** → the user restates the request; re-triage.
+- **Abort.**
+
+## 11. Finish and report
+
+1. FULL: when the final review is clean, was declined ("unreviewed"), or its open findings were accepted (§10), set the plan `**Status:** done`. Set the marker `stage: "done"`, then **delete `.sdd/active.json`**. (Deleting it on completion, on abort, or when stale at the next `/sdd` is what lets the edit hook step aside.)
+2. Print the report — short, and only facts you verified:
+   - What was done: FULL — tasks completed (one line each, from the summaries you retained), commits made; QUICK — the files changed and the verify set that passed, with the note that the changes are **uncommitted**.
+   - Routing: number of delegations by tier and any escalations (or tell the user to run `/sdd-status`).
+   - Anything **unreviewed** (a declined review), **Accepted risks** the user accepted, open review findings listed verbatim, `[!]` tasks, leftover files the user chose to Keep, paths whose QUICK diff includes the user's earlier edits, files a developer edited outside its task's Files list, and "no commits were made (not a git repository)" if applicable.
+3. On abort: delete the marker, leave the working tree as it is, and say what state it is in (completed tasks, uncommitted leftovers).
 
 ## 12. Dispatch reference
 

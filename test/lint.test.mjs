@@ -158,3 +158,40 @@ test('playbook part A: key rules and tokens are present', () => {
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
 });
+
+const PLAYBOOK_B = [
+  '## 7. Execution (FULL)', '## 8. Post-execution review (FULL)', '## 9. Amendments after approval',
+  '## 10. Stop points', '## 11. Finish and report',
+];
+
+test('playbook part B: headings between §6 and §12, in order; insertion marker removed', () => {
+  const t = read('playbook/team-lead.md');
+  assert.ok(!t.includes('INSERTED HERE BY TASK 16'));
+  let at = t.indexOf('\n## 6. Lane FULL — plan stage\n');
+  assert.ok(at > 0);
+  for (const h of [...PLAYBOOK_B, '## 12. Dispatch reference']) {
+    const i = t.indexOf(`\n${h}\n`);
+    assert.ok(i > at, `${h} missing or out of order`);
+    at = i;
+  }
+});
+
+test('playbook part B: execution, review, amendment, stop and finish rules are present', () => {
+  const t = read('playbook/team-lead.md');
+  const tokens = [
+    // §7 (AC-11, AC-29, AC-34)
+    'executing', 'pre-flight', 'dirty_at_start', 'never re-recorded', 'in_progress', 'attempt_tier', 'failures_at_last_tier', 'last_tier',
+    'fresh developer', 'FF dispatch', 'fix-forward', 'increments', 'does not increment', 'TASK-BLOCKED', 'design-gap', 'git commit', 'Manual:', 'outside the task\'s Files list',
+    // §8 (AC-12)
+    'run diff', 'reviewFixRounds', 'code-review', 'review-fix', 'fix tasks',
+    // §9 (AC-12a)
+    'Amendment', 'counters reset', 'Review only these blocks', 'draft',
+    // §10 (§8.1 table rows)
+    'Review stall or cap hit', 'Direct', 'Accept', 'Reject as out of scope', 'Abort', 'Task needs a human', 'I fixed it', 'Retry at deep with guidance', 'Skip',
+    'Analyst questions unanswered', 'Answer now', 'Proceed with assumptions', 'Verify set empty', 'Confirm done', 'Not done',
+    'Leftover edits', 'Keep', 'Revert', 'Dirty-files pre-flight', 'Ready', 'Risk-floor refusal', 'Rescope',
+    // §11
+    'unreviewed', 'Accepted risks', 'delete `.sdd/active.json`',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
