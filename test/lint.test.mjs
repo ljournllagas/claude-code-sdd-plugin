@@ -94,3 +94,29 @@ test('agents never edit outside their remit (instruction text present)', () => {
   assert.match(read('agents/developer.md'), /outside the task's Files list/i);
   assert.match(read('agents/reviewer.md'), /never modify/i);
 });
+
+// ---------- commands ----------
+test('exactly three commands with descriptions', () => {
+  assert.deepEqual(readdirSync(join(ROOT, 'commands')).sort(), ['sdd-init.md', 'sdd-status.md', 'sdd.md']);
+  for (const c of ['sdd', 'sdd-init', 'sdd-status']) assert.ok(frontmatter(`commands/${c}.md`).description.length > 10, c);
+});
+
+test('/sdd loads the playbook and passes the arguments', () => {
+  const t = read('commands/sdd.md');
+  assert.ok(t.includes('playbook/team-lead.md'));
+  assert.ok(t.includes('$ARGUMENTS'));
+  assert.ok(t.includes('${CLAUDE_PLUGIN_ROOT}'));
+});
+
+test('/sdd-init covers AC-27 and AC-28', () => {
+  const t = read('commands/sdd-init.md');
+  for (const tok of ['bin/detect.mjs', 'sdd.config.json', 'docs/sdd/specs', 'docs/sdd/plans', 'CONTEXT.md', 'starter-context.md', '.gitignore', '.sdd/', 'never overwrite', 'null', '--check-config']) {
+    assert.ok(t.includes(tok), `sdd-init.md must contain ${JSON.stringify(tok)}`);
+  }
+});
+
+test('/sdd-status runs the status script and nothing else', () => {
+  const t = read('commands/sdd-status.md');
+  assert.ok(t.includes('bin/status.mjs'));
+  assert.ok(t.includes('--check-config') === false);
+});
