@@ -5,6 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as R from '../bin/route.mjs';
 import { encodeResponse, fixtureRequest, fixtureResponse } from './helpers/typesafe-mock.mjs';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { startMock, json } from './helpers/typesafe-mock.mjs';
 
 // A project directory whose name contains a space (Review Focus 1).
 const mkProj = (cfg, raw) => {
@@ -461,4 +464,232 @@ test('logEntry keeps sent fields only and never paths', () => {
   assert.deepEqual(e, { ts: '2026-10-08T00:00:00.000Z', card: { stage: 'developer', summary: 's', files_touched: 1 }, decision: { tier: 'light' }, usage: { input_tokens: 1, output_tokens: 2 }, answers: { kind: 'k' } });
   assert.equal(R.logEntry({ stage: 'triage' }, {}, undefined, undefined).usage, null);
   assert.equal(R.logEntry({ stage: 'triage' }, {}, undefined, undefined).answers, null);
+});
+
+// ---------- route CLI (integration) ----------
+const ROUTE = fileURLToPath(new URL('../bin/route.mjs', import.meta.url));
+const KEY_ENV = R.defaultConfig().router.apiKeyEnv;
+const KEY = 'sk-test-SECRET-1234';
+
+function runRoute({ stdin, args = [], cwd, env = {} }) {
+  return new Promise((resolve) => {
+    const p = spawn(process.execPath, [ROUTE, ...args], { cwd, env: { ...process.env, [KEY_ENV]: '', ...env } });
+    let stdout = '';
+    let stderr = '';
+    p.stdout.on('data', (d) => (stdout += d));
+    p.stderr.on('data', (d) => (stderr += d));
+    p.on('close', (code) => resolve({ code, stdout, stderr }));
+    p.stdin.end(stdin ?? '');
+  });
+}
+const cardText = (o = {}) => JSON.stringify({ stage: 'developer', summary: 'add a greeting helper', files_touched: 1, ...o });
+const lines = (s) => s.split('\n').filter(Boolean);
+const withMock = async (handler, cfg, fn) => {
+  const mock = await startMock(handler);
+  try {
+    const dir = mkProj({ router: { endpoint: mock.url, timeoutMs: 300, ...(cfg?.router ?? {}) }, ...Object.fromEntries(Object.entries(cfg ?? {}).filter(([k]) => k !== 'router')) });
+    return await fn({ mock, dir });
+  } finally { await mock.close(); }
+};
+const ok200 = (raw) => (rec, res) => json(res, 200, encodeResponse(raw));
+
+test('route: no key → fallback "no key"; stdout is exactly one JSON line; exit 0', async () => {
+  const r = await runRoute({ stdin: cardText(), cwd: mkProj() });
+  assert.equal(r.code, 0);
+  assert.equal(lines(r.stdout).length, 1);
+  assert.ok(r.stdout.endsWith('\n'));
+  const d = JSON.parse(r.stdout);
+  assert.equal(d.source, 'fallback');
+  assert.equal(d.reason, 'no key');
+  assert.equal(d.tier, 'standard');
+  assert.equal(d.model, 'sonnet');
+});
+
+test('route: router disabled → "disabled" even with a key', async () => {
+  const r = await runRoute({ stdin: cardText(), cwd: mkProj({ router: { enabled: false } }), env: { [KEY_ENV]: KEY } });
+  assert.equal(JSON.parse(r.stdout).reason, 'disabled');
+});
+
+test('route: invalid config → one-line stderr naming the field; decision reason "invalid config"', async () => {
+  const r = await runRoute({ stdin: cardText(), cwd: mkProj({ router: { noulThreshold: 7 } }), env: { [KEY_ENV]: KEY } });
+  assert.equal(r.code, 0);
+  assert.equal(JSON.parse(r.stdout).reason, 'invalid config');
+  assert.equal(lines(r.stderr).length, 1);
+  assert.ok(r.stderr.includes('router.noulThreshold'));
+});
+
+test('route: caller bugs exit 2 with nothing on stdout', async () => {
+  for (const stdin of ['not json', '{}', '{"stage":"bogus"}', '[]', '']) {
+    const r = await runRoute({ stdin, cwd: mkProj() });
+    assert.equal(r.code, 2, stdin);
+    assert.equal(r.stdout, '');
+    assert.ok(r.stderr.length > 0);
+  }
+});
+
+test('route: invalid optional card fields are ignored with a stderr warning', async () => {
+  const r = await runRoute({ stdin: cardText({ paths: 'x', files_touched: -1, last_tier: 'mega' }), cwd: mkProj() });
+  assert.equal(r.code, 0);
+  for (const f of ['card.paths', 'card.files_touched', 'card.last_tier']) assert.ok(r.stderr.includes(f), f);
+  assert.equal(JSON.parse(r.stdout).source, 'fallback');
+});
+
+test('route: --card reads a file', async () => {
+  const dir = mkProj();
+  writeFileSync(join(dir, 'card.json'), cardText());
+  const r = await runRoute({ args: ['--card', join(dir, 'card.json')], cwd: dir });
+  assert.equal(r.code, 0);
+  assert.equal(JSON.parse(r.stdout).stage, 'developer');
+});
+
+test('route: Windows-style paths flag risk locally (Review Focus 1)', async () => {
+  const r = await runRoute({ stdin: cardText({ stage: 'triage', paths: ['src\\auth\\Login.ts'] }), cwd: mkProj() });
+  const d = JSON.parse(r.stdout);
+  assert.deepEqual(d.risk_flags, ['auth']);
+  assert.equal(d.lane, 'FULL');
+  assert.equal(d.tier, 'standard');
+  assert.deepEqual(d.lens, ['security']);
+});
+
+test('route: TypeSafe success — one request, metadata only, key never leaked, log written', async () => {
+  const raw = rawOf({ complexity: cx({ levels: [0, 0.2, 0.8, 0], confidence: 0.9 }), ambiguous: 0.7 });
+  await withMock(ok200(raw), { router: { maxSummaryChars: 20 } }, async ({ mock, dir }) => {
+    const stdin = cardText({ summary: 'y'.repeat(100), paths: ['src/auth/Login.ts'], files_touched: 2, tasks_downstream: 3 });
+    const r = await runRoute({ stdin, cwd: dir, env: { [KEY_ENV]: KEY } });
+    assert.equal(r.code, 0, r.stderr);
+    const d = JSON.parse(r.stdout);
+    assert.equal(d.source, 'typesafe');
+    assert.equal(d.tier, 'deep');
+    assert.equal(d.confidence, 0.9);
+    assert.ok(d.reason.includes('ambiguous'));
+    assert.deepEqual(d.risk_flags, ['auth']);
+
+    assert.equal(mock.requests.length, 1);
+    const body = JSON.parse(mock.requests[0].body);
+    assert.equal(body.state.summary, 'y'.repeat(20));
+    assert.deepEqual(body.state.risk_flags, ['auth']);
+    assert.equal(body.state.files_touched, 2);
+    assert.ok(!mock.requests[0].body.includes('src/auth'));
+    assert.ok(!mock.requests[0].body.includes('Login.ts'));
+
+    const log = readFileSync(join(dir, '.sdd', 'decisions.jsonl'), 'utf8');
+    const entry = JSON.parse(log.trim());
+    assert.equal(entry.decision.source, 'typesafe');
+    assert.deepEqual(entry.usage, { input_tokens: 100, output_tokens: 20 });
+    assert.deepEqual(Object.keys(entry.answers).sort(), ['ambiguous', 'complexity', 'cross_file', 'irreversible', 'kind']);
+    assert.ok(!('paths' in entry.card));
+    for (const text of [r.stdout, r.stderr, log]) assert.ok(!text.includes(KEY));
+  });
+});
+
+test('route: emoji summary longer than the limit is cut on a code point; output stays valid JSON (Review Focus 2)', async () => {
+  await withMock(ok200(rawOf()), { router: { maxSummaryChars: 10 } }, async ({ mock, dir }) => {
+    const r = await runRoute({ stdin: cardText({ summary: '😀 "quoted" \\ ' + '😀'.repeat(50) }), cwd: dir, env: { [KEY_ENV]: KEY } });
+    assert.equal(r.code, 0);
+    assert.doesNotThrow(() => JSON.parse(r.stdout));
+    assert.equal(Array.from(JSON.parse(mock.requests[0].body).state.summary).length, 10);
+    const entry = JSON.parse(readFileSync(join(dir, '.sdd', 'decisions.jsonl'), 'utf8').trim());
+    assert.equal(Array.from(entry.card.summary).length, 10);
+  });
+});
+
+test('route: an escalation card wins over an invalid config (defaults are used; deviation 4)', async () => {
+  const r = await runRoute({ stdin: cardText({ last_tier: 'light', failures_at_last_tier: 2 }), cwd: mkProj({ router: { noulThreshold: 7 } }), env: { [KEY_ENV]: KEY } });
+  assert.equal(r.code, 0);
+  const d = JSON.parse(r.stdout);
+  assert.equal(d.source, 'escalation');
+  assert.equal(d.tier, 'standard');
+  assert.ok(r.stderr.includes('router.noulThreshold'));
+});
+
+test('route: escalation cards never call TypeSafe', async () => {
+  await withMock((rec, res) => json(res, 200, {}), {}, async ({ mock, dir }) => {
+    const run = (n, last) => runRoute({ stdin: cardText({ last_tier: last, failures_at_last_tier: n }), cwd: dir, env: { [KEY_ENV]: KEY } });
+    assert.equal(JSON.parse((await run(1, 'light')).stdout).tier, 'light');
+    assert.equal(JSON.parse((await run(2, 'light')).stdout).tier, 'standard');
+    const h = JSON.parse((await run(2, 'deep')).stdout);
+    assert.equal(h.human, true);
+    assert.equal(h.source, 'human');
+    assert.equal(mock.requests.length, 0);
+  });
+});
+
+for (const [status, requests, reason] of [[401, 1, 'http 401'], [422, 1, 'http 422'], [500, 1, 'http 500'], [429, 2, 'http 429'], [529, 2, 'http 529']]) {
+  test(`route: HTTP ${status} → fallback "${reason}" after ${requests} request(s)`, async () => {
+    await withMock((rec, res) => json(res, status, { error: 'x' }), {}, async ({ mock, dir }) => {
+      const r = await runRoute({ stdin: cardText(), cwd: dir, env: { [KEY_ENV]: KEY } });
+      assert.equal(r.code, 0);
+      const d = JSON.parse(r.stdout);
+      assert.equal(d.source, 'fallback');
+      assert.equal(d.reason, reason);
+      assert.equal(mock.requests.length, requests);
+    });
+  });
+}
+
+test('route: 429 then success retries once and returns the TypeSafe decision', async () => {
+  await withMock((rec, res, n) => (n === 1 ? json(res, 429, {}) : json(res, 200, encodeResponse(rawOf()))), {}, async ({ mock, dir }) => {
+    const r = await runRoute({ stdin: cardText(), cwd: dir, env: { [KEY_ENV]: KEY } });
+    assert.equal(JSON.parse(r.stdout).source, 'typesafe');
+    assert.equal(mock.requests.length, 2);
+  });
+});
+
+test('route: timeout → "timeout"; one retry; wall time bounded by 2×timeoutMs+500ms', async () => {
+  await withMock(() => { /* never answers */ }, { router: { timeoutMs: 200 } }, async ({ mock, dir }) => {
+    const t0 = Date.now();
+    const r = await runRoute({ stdin: cardText(), cwd: dir, env: { [KEY_ENV]: KEY } });
+    const elapsed = Date.now() - t0;
+    assert.equal(JSON.parse(r.stdout).reason, 'timeout');
+    assert.equal(mock.requests.length, 2);
+    assert.ok(elapsed >= 600, `retry delay observed (${elapsed}ms)`);
+    assert.ok(elapsed < 2 * 200 + 500 + 1500, `bounded (${elapsed}ms)`); // 1500ms slack covers process start-up
+  });
+});
+
+test('route: connection refused → "network error"', async () => {
+  const dir = mkProj({ router: { endpoint: 'http://127.0.0.1:1/v1/systemone', timeoutMs: 300 } });
+  const r = await runRoute({ stdin: cardText(), cwd: dir, env: { [KEY_ENV]: KEY } });
+  assert.equal(JSON.parse(r.stdout).reason, 'network error');
+});
+
+test('route: malformed responses → "bad response", no retry, exit 0 (Review Focus 4)', async () => {
+  const handlers = [
+    (rec, res) => { res.writeHead(200); res.end('not json'); },
+    (rec, res) => json(res, 200, {}),
+    (rec, res) => json(res, 200, encodeResponse(rawOf({ ambiguous: 1.7 }))),
+    (rec, res) => json(res, 200, encodeResponse(rawOf({ complexity: cx({ levels: [0, 0, 0, 0], confidence: 0.5 }) }))),
+  ];
+  for (const h of handlers) {
+    await withMock(h, {}, async ({ mock, dir }) => {
+      const r = await runRoute({ stdin: cardText(), cwd: dir, env: { [KEY_ENV]: KEY } });
+      assert.equal(r.code, 0);
+      assert.equal(JSON.parse(r.stdout).reason, 'bad response');
+      assert.equal(mock.requests.length, 1);
+    });
+  }
+});
+
+test('route: every call appends one log line; a log failure changes nothing else', async () => {
+  const dir = mkProj();
+  await runRoute({ stdin: cardText(), cwd: dir });
+  await runRoute({ stdin: cardText(), cwd: dir });
+  assert.equal(lines(readFileSync(join(dir, '.sdd', 'decisions.jsonl'), 'utf8')).length, 2);
+
+  const bad = mkProj({ paths: { log: 'blocker/log.jsonl' } });
+  writeFileSync(join(bad, 'blocker'), 'x');
+  const r = await runRoute({ stdin: cardText(), cwd: bad });
+  assert.equal(r.code, 0);
+  assert.equal(JSON.parse(r.stdout).reason, 'no key');
+  assert.ok(r.stderr.includes('decision log'));
+});
+
+test('route --check-config: ok or a one-line error', async () => {
+  const good = await runRoute({ args: ['--check-config'], cwd: mkProj() });
+  assert.equal(good.code, 0);
+  assert.equal(good.stdout.trim(), 'ok');
+  const bad = await runRoute({ args: ['--check-config'], cwd: mkProj({ limits: { reviewRounds: 0 } }) });
+  assert.equal(bad.code, 1);
+  assert.equal(bad.stdout, '');
+  assert.ok(bad.stderr.includes('limits.reviewRounds'));
 });

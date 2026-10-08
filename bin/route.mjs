@@ -448,4 +448,105 @@ export function logEntry(card, decision, usage, answers, now = new Date()) {
   return { ts: now.toISOString(), card: c, decision, usage: usage ?? null, answers: answers ?? null };
 }
 // ==== ROUTE ====
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// One attempt. Never throws.
+async function attempt(fetchFn, url, init, timeoutMs) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetchFn(url, { ...init, signal: ctl.signal });
+    if (!res.ok) return { ok: false, cause: `http ${res.status}`, retry: res.status === 429 || res.status === 529 };
+    return { ok: true, text: await res.text() };
+  } catch {
+    return { ok: false, cause: ctl.signal.aborted ? 'timeout' : 'network error', retry: true };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// At most two attempts, 500 ms apart: total ≤ 2 × timeoutMs + 500 ms (AC-20). Never throws.
+export async function callTypeSafe(cfg, apiKey, state, { fetchFn = fetch, sleepFn = sleep } = {}) {
+  const { url, init } = buildRequest(cfg, apiKey, state);
+  let last = { cause: 'network error' };
+  for (let i = 0; i < 2; i++) {
+    if (i > 0) await sleepFn(500);
+    const a = await attempt(fetchFn, url, init, cfg.router.timeoutMs);
+    if (a.ok) {
+      try { return { ok: true, answers: parseResponse(JSON.parse(a.text)) }; }
+      catch { return { ok: false, cause: 'bad response' }; }
+    }
+    last = a;
+    if (!a.retry) break;
+  }
+  return { ok: false, cause: last.cause };
+}
+
+// Never throws: every runtime condition yields a valid decision (AC-15).
+export async function route(card, { projectDir, env = process.env, fetchFn, sleepFn } = {}) {
+  const loaded = loadConfig(projectDir);
+  const cfg = loaded.config;
+  const warnings = [...loaded.warnings];
+  if (!loaded.ok) warnings.push(loaded.error);
+  const c = card.summary === undefined ? card : { ...card, summary: truncateChars(card.summary, cfg.router.maxSummaryChars) };
+  let flags = [];
+  let decision;
+  let usage = null;
+  let answers = null;
+  try {
+    flags = riskFlags(c.paths, cfg.riskPaths);
+    if (c.last_tier) decision = escalate(c, cfg, flags);
+    else if (!loaded.ok) decision = fallbackDecision(c, cfg, flags, 'invalid config');
+    else if (!cfg.router.enabled) decision = fallbackDecision(c, cfg, flags, 'disabled');
+    else {
+      const key = String(env[cfg.router.apiKeyEnv] ?? '').trim();
+      if (!key) decision = fallbackDecision(c, cfg, flags, 'no key');
+      else {
+        const res = await callTypeSafe(cfg, key, buildState(c, flags, cfg.router.maxSummaryChars), { fetchFn, sleepFn });
+        if (res.ok) {
+          usage = res.answers.usage;
+          answers = { kind: res.answers.kind, complexity: res.answers.complexityScore, ambiguous: res.answers.ambiguous, irreversible: res.answers.irreversible, cross_file: res.answers.cross_file };
+          decision = decideFromAnswers(c, res.answers, cfg, flags);
+        } else decision = fallbackDecision(c, cfg, flags, res.cause);
+      }
+    }
+  } catch (e) {
+    warnings.push(`internal error: ${e.message}`);
+    decision = fallbackDecision(c, cfg, flags, 'bad response');
+  }
+  appendLog(resolve(projectDir, cfg.paths.log), logEntry(c, decision, usage, answers));
+  return { decision, usage, answers, warnings };
+}
 // ==== CLI ====
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function main(argv) {
+  const err = (m) => process.stderr.write(`${m}\n`);
+  if (argv.includes('--check-config')) {
+    const l = loadConfig(process.cwd());
+    l.warnings.forEach((w) => err(`sdd route: warning: ${w}`));
+    if (!l.ok) { err(l.error); return 1; }
+    process.stdout.write('ok\n');
+    return 0;
+  }
+  let text;
+  try {
+    const i = argv.indexOf('--card');
+    text = i >= 0 ? readFileSync(argv[i + 1], 'utf8') : await readStdin();
+  } catch (e) { err(`sdd route: cannot read card: ${e.message}`); return 2; }
+  let parsed;
+  try { parsed = parseCard(text); } catch (e) { err(`sdd route: ${e.message}`); return 2; }
+  parsed.warnings.forEach((w) => err(`sdd route: warning: ${w}`));
+  const out = await route(parsed.card, { projectDir: process.cwd() });
+  out.warnings.forEach((w) => err(`sdd route: warning: ${w}`));
+  process.stdout.write(JSON.stringify(out.decision) + '\n');
+  return 0;
+}
+
+if (basename(process.argv[1] ?? '') === 'route.mjs') {
+  main(process.argv.slice(2)).then((code) => { process.exitCode = code; });
+}
