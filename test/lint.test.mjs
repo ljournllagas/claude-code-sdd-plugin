@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePlanTasks } from '../bin/status.mjs';
+import { detect } from '../bin/detect.mjs';
 
 export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
@@ -194,4 +195,101 @@ test('playbook part B: execution, review, amendment, stop and finish rules are p
     'unreviewed', 'Accepted risks', 'delete `.sdd/active.json`',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
+
+// ---------- global rules ----------
+function walk(dir, base = dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === '.git') continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...walk(p, base));
+    else out.push(relative(base, p).replace(/\\/g, '/'));
+  }
+  return out;
+}
+
+const EXPECTED_FILES = [
+  '.claude-plugin/plugin.json',
+  'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
+  'bin/detect.mjs', 'bin/route.mjs', 'bin/status.mjs',
+  'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
+  'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
+  'hooks/guard.mjs', 'hooks/hooks.json',
+  'playbook/team-lead.md',
+  'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json',
+  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/lint.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
+  'test/helpers/typesafe-mock.mjs',
+];
+
+test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is named sdd', () => {
+  const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
+  assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
+});
+
+// Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
+const BANNED = [
+  'npm', 'yarn', 'pnpm', 'pip', 'cargo', 'maven', 'mvn', 'gradle', 'dotnet', 'msbuild', 'cmake', 'pytest', 'jest', 'vitest',
+  'mocha', 'junit', 'xunit', 'nunit', 'rspec', 'phpunit', 'python', 'javascript', 'typescript', 'java', 'kotlin', 'rust',
+  'golang', 'ruby', 'php',
+];
+const BANNED_RE = new RegExp(`\\b(${BANNED.join('|')})\\b`, 'i');
+
+test('AC-2: no toolchain names in agents, commands, playbook, templates, bin or hooks', () => {
+  const targets = walk(ROOT).filter((f) => /^(agents|commands|playbook|templates|bin|hooks)\//.test(f));
+  assert.ok(targets.length >= 15);
+  for (const f of targets) {
+    const text = read(f);
+    const m = BANNED_RE.exec(text);
+    assert.equal(m, null, `${f} names a toolchain: ${m && m[0]}`);
+    assert.ok(!/c#|\.net\b/i.test(text), `${f} names a toolchain (c# / .net)`);
+  }
+});
+
+test('AC-3: scripts import only Node built-ins (sibling Kit modules where documented)', () => {
+  const allowedRelative = { 'bin/status.mjs': ['./route.mjs'] };
+  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'hooks/guard.mjs']) {
+    const text = read(f);
+    assert.ok(!/\brequire\s*\(/.test(text), `${f} uses require`);
+    assert.ok(!/\bimport\s*\(/.test(text), `${f} uses dynamic import`);
+    const specs = [...text.matchAll(/^\s*import\b[^'"\n]*['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+    assert.ok(specs.length > 0, `${f} has imports`);
+    for (const s of specs) {
+      assert.ok(s.startsWith('node:') || (allowedRelative[f] ?? []).includes(s), `${f} imports ${s}`);
+    }
+  }
+});
+
+test('AC-4: no Kit file references another plugin or skill system', () => {
+  const targets = walk(ROOT).filter((f) => !f.startsWith('test/') && !f.startsWith('.git'));
+  for (const f of targets) {
+    assert.ok(!/superpowers/i.test(read(f)), `${f} mentions superpowers`);
+    assert.ok(!/\bSkill tool\b/.test(read(f)), `${f} invokes the Skill tool`);
+  }
+});
+
+test('config/detectors.json is the one place toolchain names live', () => {
+  assert.match(read('config/detectors.json'), /\bcargo\b/);
+});
+
+test('every playbook card/dispatch/section reference points at a heading that exists', () => {
+  const t = read('playbook/team-lead.md');
+  const have = new Set([...t.matchAll(/^## (\d+)\./gm)].map((m) => m[1]));
+  for (const m of t.matchAll(/§(\d+)(?:\.\d+)?/g)) assert.ok(have.has(m[1]), `playbook references §${m[1]} but no such section`);
+});
+
+test('dry-run fixture repositories are detectable in two different ecosystems', () => {
+  const js = detect(join(ROOT, 'test/fixtures/repo-js')).candidates;
+  const py = detect(join(ROOT, 'test/fixtures/repo-py')).candidates;
+  assert.equal(js[0].verify.test, 'npm test');
+  assert.equal(py[0].verify.test, 'pytest');
+});
+
+test('dry-run scenario checklist covers the six scenarios of spec §10', () => {
+  const t = read('test/fixtures/dry-run-scenarios.md');
+  for (const h of [
+    'Scenario 1 — QUICK happy path', 'Scenario 2 — FULL happy path', 'Scenario 3 — Risk-floor refusal',
+    'Scenario 4 — Review stall', 'Scenario 5 — Task escalation to human', 'Scenario 6 — No-git project',
+  ]) assert.ok(t.includes(`## ${h}`), h);
 });
