@@ -1,0 +1,33 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "kind": {
+      "type": "choice",
+      "choice": "feature_logic",
+      "probabilities": {
+        "mechanical_edit": 0.05,
+        "feature_logic": 0.8,
+        "debugging": 0.1,
+        "design_judgment": 0.05,
+        "docs_or_text": 0.0
+      },
+      "confidence": 0.75
+    },
+    "complexity": {
+      "type": "score",
+      "score": 1.35,
+      "legend": {
+        "0": "Trivial and mechanical: an obvious edit with one correct way to do it.",
+        "1": "A contained change to a single behaviour in one place, with a clear expected result.",
+        "2": "Multi-part or cross-cutting: several coordinated changes, or one change whose effects spread to other parts.",
+        "3": "Hard or ambiguous design: the right approach is not obvious and needs careful judgment or investigation."
+      },
+      "probabilities": { "0": 0.05, "1": 0.6, "2": 0.3, "3": 0.05 },
+      "confidence": 0.55
+    },
+    "ambiguous": { "type": "noul", "noul": 0.22 },
+    "irreversible": { "type": "noul", "noul": 0.04 },
+    "cross_file": { "type": "noul", "noul": 0.71 }
+  },
+  "usage": { "input_tokens": 812, "output_tokens": 64 }
+}

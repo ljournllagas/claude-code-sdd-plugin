@@ -1,0 +1,58 @@
+{
+  "state": {
+    "stage": "developer",
+    "summary": "Add a retry with backoff to the HTTP client used by the export job, and log each retry attempt.",
+    "files_touched": 3,
+    "tasks_upstream": 1,
+    "tasks_downstream": 2,
+    "risk_flags": []
+  },
+  "model": "jev-latest",
+  "questions": {
+    "kind": {
+      "type": "choice",
+      "instructions": "What kind of software work does `summary` describe, for the delegation stage named in `stage`?",
+      "criteria": {
+        "mechanical_edit": "A mechanical change: rename, move, reformat, bump a value, or apply an already-decided edit with no new logic.",
+        "feature_logic": "New or changed program behaviour: adding or modifying logic, a feature, or a code path.",
+        "debugging": "Finding and fixing the cause of a defect, failure, or unexpected behaviour.",
+        "design_judgment": "Deciding how something should be structured or what approach to take; the main output is a design decision.",
+        "docs_or_text": "Writing or editing documentation, comments, messages, or other prose, with no change to program behaviour."
+      }
+    },
+    "complexity": {
+      "type": "score",
+      "instructions": "How difficult is the work described in `summary` for a developer to complete correctly? Use `files_touched`, `tasks_upstream` and `tasks_downstream` as size and coupling hints.",
+      "criteria": [
+        "Trivial and mechanical: an obvious edit with one correct way to do it.",
+        "A contained change to a single behaviour in one place, with a clear expected result.",
+        "Multi-part or cross-cutting: several coordinated changes, or one change whose effects spread to other parts.",
+        "Hard or ambiguous design: the right approach is not obvious and needs careful judgment or investigation."
+      ]
+    },
+    "ambiguous": {
+      "type": "noul",
+      "instructions": "Are the requirements in `summary` unclear enough that a developer would have to guess what is wanted?",
+      "criteria": {
+        "true": "Key details of the expected result are missing or open to more than one reasonable reading.",
+        "false": "The expected result is clear enough to implement without guessing."
+      }
+    },
+    "irreversible": {
+      "type": "noul",
+      "instructions": "Once deployed, could the change described in `summary` be impossible to cleanly roll back, for example a database schema or data change, a public contract change, an authentication change, a change to persisted data, or a deletion?",
+      "criteria": {
+        "true": "Rolling back would not restore the previous state cleanly.",
+        "false": "Reverting the code change fully restores the previous state."
+      }
+    },
+    "cross_file": {
+      "type": "noul",
+      "instructions": "Does the work in `summary` need reasoning across several files or modules, rather than within one place?",
+      "criteria": {
+        "true": "The developer must understand and keep consistent several files or modules.",
+        "false": "The work can be done by understanding a single file or module."
+      }
+    }
+  }
+}
