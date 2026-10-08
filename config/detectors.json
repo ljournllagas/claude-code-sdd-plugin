@@ -1,0 +1,61 @@
+{
+  "skipDirs": ["node_modules", "vendor", "target", "obj", "bin", "dist", "build", "out"],
+  "detectors": [
+    { "id": "package.json", "files": ["package.json"], "verify": {
+      "build": { "cmd": "npm run build", "ifJson": "scripts.build" },
+      "test": { "cmd": "npm test", "ifJson": "scripts.test" },
+      "lint": { "cmd": "npm run lint", "ifJson": "scripts.lint" },
+      "typecheck": { "cmd": "npm run typecheck", "ifJson": "scripts.typecheck" },
+      "format": { "cmd": "npm run format", "ifJson": "scripts.format" },
+      "testOne": { "cmd": "npm test -- {target}", "ifJson": "scripts.test" } } },
+    { "id": "go.mod", "files": ["go.mod"], "verify": {
+      "build": "go build ./...", "test": "go test ./...", "lint": "go vet ./...",
+      "typecheck": null, "format": "gofmt -l .", "testOne": "go test ./... -run {target}" } },
+    { "id": "pyproject.toml", "files": ["pyproject.toml"], "verify": {
+      "build": null,
+      "test": { "cmd": "pytest", "ifMatch": "pytest" },
+      "lint": { "cmd": "ruff check .", "ifMatch": "ruff" },
+      "typecheck": { "cmd": "mypy .", "ifMatch": "mypy" },
+      "format": { "cmd": "ruff format --check .", "ifMatch": "ruff" },
+      "testOne": { "cmd": "pytest {target}", "ifMatch": "pytest" } } },
+    { "id": "requirements.txt", "files": ["requirements.txt"], "verify": {
+      "build": null,
+      "test": { "cmd": "pytest", "ifMatch": "pytest" },
+      "lint": null, "typecheck": null, "format": null,
+      "testOne": { "cmd": "pytest {target}", "ifMatch": "pytest" } } },
+    { "id": "Cargo.toml", "files": ["Cargo.toml"], "verify": {
+      "build": "cargo build", "test": "cargo test", "lint": "cargo clippy",
+      "typecheck": "cargo check", "format": "cargo fmt --check", "testOne": "cargo test {target}" } },
+    { "id": "dotnet", "files": ["*.sln", "*.csproj"], "verify": {
+      "build": "dotnet build", "test": "dotnet test", "lint": null, "typecheck": null,
+      "format": "dotnet format --verify-no-changes", "testOne": "dotnet test --filter {target}" } },
+    { "id": "pom.xml", "files": ["pom.xml"], "verify": {
+      "build": "mvn -q compile", "test": "mvn -q test", "lint": null, "typecheck": null,
+      "format": null, "testOne": "mvn -q test -Dtest={target}" } },
+    { "id": "gradle", "files": ["build.gradle", "build.gradle.kts"], "verify": {
+      "build": "gradle build", "test": "gradle test", "lint": null, "typecheck": null,
+      "format": null, "testOne": "gradle test --tests {target}" } },
+    { "id": "Makefile", "files": ["Makefile"], "verify": {
+      "build": { "cmd": "make build", "ifMatch": "^build:", "flags": "m" },
+      "test": { "cmd": "make test", "ifMatch": "^test:", "flags": "m" },
+      "lint": { "cmd": "make lint", "ifMatch": "^lint:", "flags": "m" },
+      "typecheck": { "cmd": "make typecheck", "ifMatch": "^typecheck:", "flags": "m" },
+      "format": { "cmd": "make format", "ifMatch": "^format:", "flags": "m" },
+      "testOne": null } },
+    { "id": "mix.exs", "files": ["mix.exs"], "verify": {
+      "build": "mix compile", "test": "mix test",
+      "lint": { "cmd": "mix credo", "ifMatch": "credo" },
+      "typecheck": null, "format": "mix format --check-formatted", "testOne": "mix test {target}" } },
+    { "id": "Gemfile", "files": ["Gemfile"], "verify": {
+      "build": null,
+      "test": { "cmd": "bundle exec rspec", "ifMatch": "rspec" },
+      "lint": { "cmd": "bundle exec rubocop", "ifMatch": "rubocop" },
+      "typecheck": null, "format": null,
+      "testOne": { "cmd": "bundle exec rspec {target}", "ifMatch": "rspec" } } },
+    { "id": "composer.json", "files": ["composer.json"], "verify": {
+      "build": null,
+      "test": { "cmd": "composer test", "ifJson": "scripts.test" },
+      "lint": { "cmd": "composer lint", "ifJson": "scripts.lint" },
+      "typecheck": null, "format": null, "testOne": null } }
+  ]
+}
