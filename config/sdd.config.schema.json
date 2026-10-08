@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "sdd.config.json",
+  "type": "object",
+  "definitions": {
+    "tier": { "enum": ["light", "standard", "deep"] },
+    "stageTiers": {
+      "type": "object",
+      "required": ["triage","analyst","planner","developer","reviewer-spec","reviewer-plan","reviewer-code"],
+      "additionalProperties": false,
+      "patternProperties": { "^(triage|analyst|planner|developer|reviewer-spec|reviewer-plan|reviewer-code)$": { "$ref": "#/definitions/tier" } }
+    },
+    "unit": { "type": "number", "minimum": 0, "maximum": 1 },
+    "posInt": { "type": "integer", "minimum": 1 }
+  },
+  "properties": {
+    "version": { "const": 1 },
+    "models": { "type": "object", "required": ["light","standard","deep"], "additionalProperties": false, "patternProperties": { "^(light|standard|deep)$": { "type": "string", "minLength": 1 } } },
+    "efforts": { "type": "object", "required": ["light","standard","deep"], "additionalProperties": false, "patternProperties": { "^(light|standard|deep)$": { "enum": ["low","medium","high","xhigh","max"] } } },
+    "router": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "apiKeyEnv": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "endpoint": { "type": "string", "pattern": "^https?://" },
+        "timeoutMs": { "$ref": "#/definitions/posInt" },
+        "confidenceThreshold": { "$ref": "#/definitions/unit" },
+        "noulThreshold": { "$ref": "#/definitions/unit" },
+        "maxSummaryChars": { "$ref": "#/definitions/posInt" }
+      }
+    },
+    "stageFloors": { "$ref": "#/definitions/stageTiers" },
+    "fallbackTiers": { "$ref": "#/definitions/stageTiers" },
+    "riskPaths": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["globs", "minTier", "lens"],
+        "properties": {
+          "globs": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "minTier": { "$ref": "#/definitions/tier" },
+          "lens": { "enum": ["security", "data", "contract", "performance"] }
+        }
+      }
+    },
+    "riskKeywords": { "type": "array", "items": { "type": "string" } },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "build": { "type": ["string", "null"] }, "test": { "type": ["string", "null"] },
+        "lint": { "type": ["string", "null"] }, "typecheck": { "type": ["string", "null"] },
+        "format": { "type": ["string", "null"] }, "testOne": { "type": ["string", "null"] }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "properties": { "specs": { "type": "string" }, "plans": { "type": "string" }, "log": { "type": "string" }, "active": { "type": "string" } }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "reviewRounds": { "$ref": "#/definitions/posInt" }, "verifyFailuresPerTier": { "$ref": "#/definitions/posInt" },
+        "reviewFixRounds": { "$ref": "#/definitions/posInt" }, "openQuestions": { "$ref": "#/definitions/posInt" },
+        "questionRounds": { "$ref": "#/definitions/posInt" }
+      }
+    },
+    "guard": { "type": "object", "properties": { "ttlHours": { "type": "number", "exclusiveMinimum": 0 } } }
+  }
+}

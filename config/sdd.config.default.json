@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "models":  { "light": "haiku", "standard": "sonnet", "deep": "opus" },
+  "efforts": { "light": "low", "standard": "medium", "deep": "high" },
+  "router": {
+    "enabled": true, "apiKeyEnv": "TYPESAFE_API_KEY", "model": "jev-latest",
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "timeoutMs": 4000, "confidenceThreshold": 0.6, "noulThreshold": 0.5,
+    "maxSummaryChars": 500
+  },
+  "stageFloors":   { "triage":"light","analyst":"standard","planner":"standard","developer":"light",
+                     "reviewer-spec":"standard","reviewer-plan":"standard","reviewer-code":"light" },
+  "fallbackTiers": { "triage":"light","analyst":"deep","planner":"deep","developer":"standard",
+                     "reviewer-spec":"deep","reviewer-plan":"deep","reviewer-code":"standard" },
+  "riskPaths": {
+    "auth":     { "globs": ["**/auth/**","**/authn/**","**/authz/**","**/*permission*","**/*login*"], "minTier":"standard", "lens":"security" },
+    "money":    { "globs": ["**/billing/**","**/payment*/**","**/invoice*/**","**/*price*"],          "minTier":"standard", "lens":"security" },
+    "schema":   { "globs": ["**/migrations/**","**/*.sql","**/schema*"],                              "minTier":"standard", "lens":"data" },
+    "contract": { "globs": ["**/openapi*","**/*.proto","**/*.graphql","**/api/**"],                   "minTier":"standard", "lens":"contract" },
+    "pii":      { "globs": ["**/*user*/**","**/*customer*/**","**/*profile*"],                        "minTier":"standard", "lens":"security" }
+  },
+  "riskKeywords": ["delete","drop ","truncate","purge","migrat","password","secret","token","credential","payment","refund","invoice","ssn","gdpr","encrypt"],
+  "verify": { "build": null, "test": null, "lint": null, "typecheck": null, "format": null, "testOne": null },
+  "paths":  { "specs": "docs/sdd/specs", "plans": "docs/sdd/plans", "log": ".sdd/decisions.jsonl", "active": ".sdd/active.json" },
+  "limits": { "reviewRounds": 3, "verifyFailuresPerTier": 2, "reviewFixRounds": 2, "openQuestions": 8, "questionRounds": 2 },
+  "guard":  { "ttlHours": 12 }
+}
