@@ -57,7 +57,7 @@ test('subdirectories: prefixed commands, quoting for spaces, skip list and hidde
 });
 
 test('a manifest with a UTF-8 byte order mark is still read', () => {
-  const { candidates } = detect(mkRepo({ 'package.json': '﻿{"scripts":{"test":"t","lint":"l"}}' }));
+  const { candidates } = detect(mkRepo({ 'package.json': '\uFEFF{"scripts":{"test":"t","lint":"l"}}' }));
   assert.equal(candidates[0].verify.test, 'npm test');
   assert.equal(candidates[0].verify.lint, 'npm run lint');
   assert.equal(candidates[0].verify.build, null);

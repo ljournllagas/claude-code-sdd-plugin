@@ -84,7 +84,7 @@ test('invalid JSON and non-object JSON are errors', () => {
 });
 
 test('config with a UTF-8 byte order mark loads', () => {
-  const l = R.loadConfig(mkProj(null, '﻿' + JSON.stringify({ router: { timeoutMs: 321 } })));
+  const l = R.loadConfig(mkProj(null, '\uFEFF' + JSON.stringify({ router: { timeoutMs: 321 } })));
   assert.equal(l.ok, true, l.error);
   assert.equal(l.config.router.timeoutMs, 321);
 });

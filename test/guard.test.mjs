@@ -155,7 +155,7 @@ test('hook process: deny JSON on stdout, silent allow, exit 0 on garbage', () =>
 test('config and marker with a UTF-8 byte order mark are read (ttl honoured, not fail-open)', () => {
   const withCfg = (ago) => {
     const d = proj({ ago });
-    writeFileSync(join(d, 'sdd.config.json'), '﻿' + JSON.stringify({ guard: { ttlHours: 2 } }));
+    writeFileSync(join(d, 'sdd.config.json'), '\uFEFF' + JSON.stringify({ guard: { ttlHours: 2 } }));
     return d;
   };
   const fresh = withCfg(1);
@@ -164,7 +164,7 @@ test('config and marker with a UTF-8 byte order mark are read (ttl honoured, not
   assert.ok(r.message.includes('after 2h of inactivity'));
   const stale = withCfg(3);
   assert.equal(ev(call(stale, join(stale, 'src', 'a.js'))).deny, false);
-  const bomMarker = proj({ markerRaw: '﻿' + JSON.stringify({ slug: 's', lane: 'FULL', stage: 'executing', updated: iso(1) }) });
+  const bomMarker = proj({ markerRaw: '\uFEFF' + JSON.stringify({ slug: 's', lane: 'FULL', stage: 'executing', updated: iso(1) }) });
   assert.equal(ev(call(bomMarker, join(bomMarker, 'src', 'a.js'))).deny, true);
 });
 
