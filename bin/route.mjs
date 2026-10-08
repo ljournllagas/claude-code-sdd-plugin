@@ -406,5 +406,46 @@ export function fallbackDecision(card, cfg, flags, cause) {
   return d;
 }
 // ==== LOG AND CARD ====
+export class CardError extends Error {}
+
+export function parseCard(text) {
+  let raw;
+  try { raw = JSON.parse(text); } catch { throw new CardError('card is not valid JSON'); }
+  if (!isPlainObject(raw)) throw new CardError('card must be a JSON object');
+  if (!STAGES.includes(raw.stage)) throw new CardError(`card.stage must be one of: ${STAGES.join(', ')}`);
+  const card = { stage: raw.stage };
+  const warnings = [];
+  const warn = (f, why) => warnings.push(`card.${f}: ${why}; ignored`);
+  const count = (v) => Number.isInteger(v) && v >= 0;
+  if ('summary' in raw) { if (typeof raw.summary === 'string') card.summary = raw.summary; else warn('summary', 'must be a string'); }
+  if ('paths' in raw) {
+    if (Array.isArray(raw.paths) && raw.paths.every((p) => typeof p === 'string')) card.paths = raw.paths;
+    else warn('paths', 'must be an array of strings');
+  }
+  for (const k of ['files_touched', 'tasks_upstream', 'tasks_downstream', 'failures_at_last_tier']) {
+    if (k in raw) { if (count(raw[k])) card[k] = raw[k]; else warn(k, 'must be a non-negative integer'); }
+  }
+  if ('last_tier' in raw) { if (TIERS.includes(raw.last_tier)) card.last_tier = raw.last_tier; else warn('last_tier', 'must be light, standard or deep'); }
+  return { card, warnings };
+}
+
+export function appendLog(logPath, entry) {
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+    appendFileSync(logPath, JSON.stringify(entry) + '\n');
+    return true;
+  } catch (e) {
+    process.stderr.write(`sdd route: could not write decision log: ${e.message}\n`);
+    return false;
+  }
+}
+
+export function logEntry(card, decision, usage, answers, now = new Date()) {
+  const c = { stage: card.stage };
+  for (const k of ['summary', 'files_touched', 'tasks_upstream', 'tasks_downstream', 'last_tier', 'failures_at_last_tier']) {
+    if (card[k] !== undefined) c[k] = card[k];
+  }
+  return { ts: now.toISOString(), card: c, decision, usage: usage ?? null, answers: answers ?? null };
+}
 // ==== ROUTE ====
 // ==== CLI ====

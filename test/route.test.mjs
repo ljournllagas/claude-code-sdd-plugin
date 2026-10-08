@@ -418,3 +418,47 @@ test('FALLBACK_CAUSES lists the documented reasons', () => {
   assert.ok(R.FALLBACK_CAUSES.includes('no key'));
   assert.ok(R.FALLBACK_CAUSES.includes('bad response'));
 });
+
+// ---------- card and log ----------
+test('parseCard: minimal and full valid cards', () => {
+  assert.deepEqual(R.parseCard('{"stage":"triage"}'), { card: { stage: 'triage' }, warnings: [] });
+  const full = { stage: 'developer', summary: 's', paths: ['a/b'], files_touched: 2, tasks_upstream: 0, tasks_downstream: 3, last_tier: 'light', failures_at_last_tier: 1 };
+  assert.deepEqual(R.parseCard(JSON.stringify(full)).card, full);
+});
+
+test('parseCard: caller bugs throw CardError', () => {
+  for (const t of ['not json', '[]', '"x"', 'null', '{}', '{"stage":"bogus"}', '{"stage":3}']) {
+    assert.throws(() => R.parseCard(t), R.CardError, t);
+  }
+});
+
+test('parseCard: invalid optional fields are ignored with a warning', () => {
+  const t = JSON.stringify({ stage: 'developer', summary: 5, paths: 'x', files_touched: -1, tasks_upstream: 1.5, tasks_downstream: 'n', last_tier: 'mega', failures_at_last_tier: -2 });
+  const { card, warnings } = R.parseCard(t);
+  assert.deepEqual(card, { stage: 'developer' });
+  for (const f of ['summary', 'paths', 'files_touched', 'tasks_upstream', 'tasks_downstream', 'last_tier', 'failures_at_last_tier']) {
+    assert.ok(warnings.some((w) => w.startsWith(`card.${f}:`)), f);
+  }
+  assert.deepEqual(R.parseCard('{"stage":"developer","paths":["a",1]}').card, { stage: 'developer' });
+});
+
+test('appendLog appends JSON lines and creates directories', () => {
+  const d = mkProj();
+  const p = join(d, 'nested', 'dir', 'log.jsonl');
+  assert.equal(R.appendLog(p, { a: 1 }), true);
+  assert.equal(R.appendLog(p, { b: 2 }), true);
+  assert.deepEqual(readFileSync(p, 'utf8').trim().split('\n').map((l) => JSON.parse(l)), [{ a: 1 }, { b: 2 }]);
+});
+
+test('appendLog returns false instead of throwing when the path is unusable', () => {
+  const d = mkProj();
+  writeFileSync(join(d, 'blocker'), 'x');
+  assert.equal(R.appendLog(join(d, 'blocker', 'log.jsonl'), { a: 1 }), false);
+});
+
+test('logEntry keeps sent fields only and never paths', () => {
+  const e = R.logEntry({ stage: 'developer', summary: 's', paths: ['src/auth/a.ts'], files_touched: 1 }, { tier: 'light' }, { input_tokens: 1, output_tokens: 2 }, { kind: 'k' }, new Date('2026-10-08T00:00:00Z'));
+  assert.deepEqual(e, { ts: '2026-10-08T00:00:00.000Z', card: { stage: 'developer', summary: 's', files_touched: 1 }, decision: { tier: 'light' }, usage: { input_tokens: 1, output_tokens: 2 }, answers: { kind: 'k' } });
+  assert.equal(R.logEntry({ stage: 'triage' }, {}, undefined, undefined).usage, null);
+  assert.equal(R.logEntry({ stage: 'triage' }, {}, undefined, undefined).answers, null);
+});
