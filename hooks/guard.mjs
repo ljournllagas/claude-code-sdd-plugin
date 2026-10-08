@@ -22,7 +22,14 @@ export function evaluate(input, now = Date.now()) {
     if (typeof target !== 'string' || target.length === 0) return ALLOW;
     const cwd = typeof input.cwd === 'string' && input.cwd.length > 0 ? input.cwd : process.cwd();
 
-    const cfg = readJson(resolve(cwd, 'sdd.config.json')) ?? {};
+    // Absent config → defaults. Present but unreadable, unparseable or not an object → fail open (spec AC-31).
+    let cfg = {};
+    try {
+      cfg = JSON.parse(readFileSync(resolve(cwd, 'sdd.config.json'), 'utf8'));
+    } catch (e) {
+      if (e?.code !== 'ENOENT') return ALLOW;
+    }
+    if (cfg === null || typeof cfg !== 'object' || Array.isArray(cfg)) return ALLOW;
     const paths = cfg.paths !== null && typeof cfg.paths === 'object' ? cfg.paths : {};
     const ttl = typeof cfg.guard?.ttlHours === 'number' && cfg.guard.ttlHours > 0 ? cfg.guard.ttlHours : DEFAULTS.ttlHours;
 

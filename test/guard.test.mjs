@@ -88,9 +88,14 @@ test('fail open: other tools, unknown shapes, unreadable config', () => {
   for (const v of [null, undefined, 'x', 42, [], {}, { tool_name: 'Write' }, { tool_name: 'Write', tool_input: {}, cwd: d }, { tool_name: 'Write', tool_input: { file_path: 5 }, cwd: d }]) {
     assert.equal(ev(v).deny, false, JSON.stringify(v));
   }
-  const bad = proj();
-  writeFileSync(join(bad, 'sdd.config.json'), '{ nope');
-  assert.equal(ev(call(bad, join(bad, 'src', 'a.js'))).deny, true); // unreadable config → defaults, still guarded
+  // A present-but-unparseable (or non-object) config fails open (spec AC-31); an absent one uses defaults.
+  for (const raw of ['{ nope', '', '[]', 'null', '42']) {
+    const bad = proj();
+    writeFileSync(join(bad, 'sdd.config.json'), raw);
+    assert.equal(ev(call(bad, join(bad, 'src', 'a.js'))).deny, false, `config ${JSON.stringify(raw)}`);
+  }
+  const absent = proj();
+  assert.equal(ev(call(absent, join(absent, 'src', 'a.js'))).deny, true); // absent config → defaults, still guarded
 });
 
 test('configured specs/plans directories and marker path are honoured', () => {
@@ -113,6 +118,9 @@ test('Windows-style absolute backslash target and cwd are matched', { skip: proc
   const r = ev(call(win(d), win(join(d, 'src', 'app.js'))));
   assert.equal(r.deny, true);
   assert.ok(r.message.includes('may not edit src/app.js.'));
+  // mixed slashes: forward-slash cwd with a backslash target
+  assert.equal(ev(call(d.replace(/\\/g, '/'), win(join(d, 'src', 'app.js')))).deny, true);
+  assert.equal(ev(call(d.replace(/\\/g, '/'), win(join(d, 'docs', 'sdd', 'plans', 'p.md')))).deny, false);
 });
 
 test('guard defaults equal the shipped default config', () => {
