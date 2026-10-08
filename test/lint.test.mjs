@@ -201,7 +201,9 @@ test('playbook part B: execution, review, amendment, stop and finish rules are p
 function walk(dir, base = dir) {
   const out = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === '.git') continue;
+    // Hidden directories are not part of the Kit layout (editor/tool caches such as .git and
+    // .code-review-graph); .claude-plugin is the one hidden directory that is.
+    if (e.isDirectory() && e.name.startsWith('.') && e.name !== '.claude-plugin') continue;
     const p = join(dir, e.name);
     if (e.isDirectory()) out.push(...walk(p, base));
     else out.push(relative(base, p).replace(/\\/g, '/'));
