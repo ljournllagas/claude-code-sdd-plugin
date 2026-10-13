@@ -364,3 +364,14 @@ test('v0.3 config: the two new limits are in the default config and the schema',
   assert.ok('sliceMaxTasks' in schema.properties.limits.properties);
   assert.ok('expandBatchTasks' in schema.properties.limits.properties);
 });
+
+test('v0.3 playbook: outline, expansion, slices, scopes, resume and the plan-check stop are present', () => {
+  const t = read('playbook/team-lead.md');
+  const tokens = [
+    'outline-draft', 'outline-review', 'outline-approval', 'approved_slices', 'limits.sliceMaxTasks', 'limits.expandBatchTasks',
+    'MODE: OUTLINE', 'MODE: EXPAND', 'OUTLINE-GAP', 'bin/plan.mjs', 'Scope: outline', 'Scope: slice', 'Scope: plan',
+    'Task file:', 'Plan check failed', 'Legacy plans', 'never re-dispatch a task whose file exists',
+    'Never dispatch a task of a slice that is not in `approved_slices`', 'Split plans.',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
