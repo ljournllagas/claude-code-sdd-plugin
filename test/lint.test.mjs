@@ -13,10 +13,10 @@ const headings = (text, level = 2) => [...text.matchAll(new RegExp(`^${'#'.repea
 
 // ---------- templates ----------
 // A shipped template must itself be valid frontmatter (AC-1, AC-12).
-function templateFields(rel, type) {
+function templateFields(rel, type, extra = []) {
   const r = parseFrontmatter(read(rel));
   assert.ok(r.fields, `${rel} frontmatter: ${r.reason}`);
-  assert.deepEqual(Object.keys(r.fields), ['type', 'title', 'description', 'status', 'timestamp']);
+  assert.deepEqual(Object.keys(r.fields), ['type', 'title', 'description', 'status', 'timestamp', ...extra]);
   assert.equal(r.fields.type, type);
   assert.equal(r.fields.status, 'draft');
   return r.fields;
@@ -35,20 +35,30 @@ test('spec template has every §7.1 heading, in order, and valid frontmatter', (
   assert.ok(t.includes('AC-1'));
 });
 
-test('plan template has the header fields, matrix, and a parseable task block with every field label', () => {
+test('plan template is a split-plan manifest: valid frontmatter with layout, header fields and the manifest sections', () => {
   const t = read('templates/plan.md');
-  templateFields('templates/plan.md', 'plan');
+  const fields = templateFields('templates/plan.md', 'plan', ['layout']);
+  assert.equal(fields.layout, 'split');
   for (const h of ['**Spec:**', '**Task count:**']) assert.ok(t.includes(h), h);
-  assert.deepEqual(headings(t), ['Verify block', 'Accepted risks', 'Coverage matrix', 'Tasks']);
+  assert.deepEqual(headings(t), ['Verify block', 'Accepted risks', 'Coverage matrix', 'Slices', 'Task index']);
+  assert.equal(parsePlanTasks(t).length, 0, 'the manifest holds no task headings');
+  assert.ok(t.includes('- Slice 1'));
+  assert.ok(t.includes(' · slice 1 · ACs: '));
+  assert.ok(t.includes('summary: '));
+});
+
+test('task template is one task block: heading first, every field label in order', () => {
+  const t = read('templates/task.md');
+  assert.ok(t.startsWith('### T1 — '), 'a task file starts with its heading');
   const tasks = parsePlanTasks(t);
   assert.equal(tasks.length, 1);
   assert.equal(tasks[0].id, 'T1');
   assert.equal(tasks[0].marker, ' ');
   const labels = ['Satisfies:', 'Depends on:', 'Lenses:', 'Router summary:', 'Files:', 'Consumes:', 'Produces:', 'Reuse:', 'Tests (complete):', 'Recipe:', 'Red:', 'Green:', 'Verify:', 'Commit:'];
-  let at = t.indexOf('### T1');
+  let at = 0;
   for (const l of labels) {
     const i = t.indexOf(l, at);
-    assert.ok(i > at, `label ${l} missing or out of order`);
+    assert.ok(i !== -1 && i >= at, `label ${l} missing or out of order`);
     at = i;
   }
 });
@@ -232,7 +242,7 @@ const EXPECTED_FILES = [
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/team-lead.md',
-  'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json',
+  'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json', 'templates/task.md',
   'test/detect.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
   'test/helpers/typesafe-mock.mjs',
 ];

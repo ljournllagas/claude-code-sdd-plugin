@@ -4,6 +4,7 @@ title: <Feature name>
 description: <One sentence: what this plan builds>
 status: draft
 timestamp: <YYYY-MM-DD>
+layout: split
 ---
 
 # <Feature name> — Plan
@@ -11,7 +12,7 @@ timestamp: <YYYY-MM-DD>
 **Spec:** <path to the approved spec>
 **Task count:** <n>
 
-<!-- Every task block must be executable from its own text plus the repository. A developer agent receives only its block. A task changes one behaviour and touches at most 5 files; split otherwise. Tasks form an acyclic dependency graph. Every `modify` target exists; every `create` target's parent directory exists or is created by an earlier task. -->
+<!-- This file is the manifest of a split plan. It holds no task bodies and no task markers: each task lives in its own file `<plans dir>/<slug>/T<n>.md` (template: templates/task.md), written later in batches. Write the outline first: slices, the coverage matrix and one index entry per task. -->
 
 ## Verify block
 
@@ -26,30 +27,19 @@ None
 
 ## Coverage matrix
 
-<!-- Every spec AC appears exactly once on the left.
+<!-- Every spec AC appears exactly once on the left, mapped to the tasks that satisfy it.
 | AC | Tasks |
 |---|---|
 | AC-1 | T1 |
 | AC-2 | T1, T2 | -->
 
-## Tasks
+## Slices
 
-### T1 — <title>   [ ] pending
-Satisfies: AC-1
-Depends on: none
-Lenses: <optional: security | data | contract | performance>
-Router summary: <at most 500 characters, plain language, no code>
-Files:
-  - create  path/to/new_file     (symbol: Name)
-  - modify  path/to/existing     (symbol: Name; lines/region if known)
-Consumes:  <full signatures/types, each with its defining task ID or "existing: path">
-Produces:  <full signatures/types, errors, side effects>
-Reuse:     <existing code (path and symbol), standard-library or native feature, or installed dependency the Recipe calls; or `none — searched <what was searched>, nothing to reuse`>
-Tests (complete): <full test code, in the project's language>
-Recipe: <numbered prose steps; pseudo-steps only for non-obvious logic; no full implementation bodies>
-Red:    <exact command> → expected: fails because <specific reason>
-Green:  <exact command> → expected: <specific outcome>
-Verify: <exact command(s) from the Verify block> → expected: <outcome>
-Commit: <imperative subject, at most 72 characters>
+<!-- One line per slice, numbered from 1 without gaps. A slice holds at most the slice cap of tasks (limits.sliceMaxTasks); a plan at or under the cap has exactly one slice. Each slice depends only on itself and earlier slices.
+- Slice 1 — <title> -->
 
-<!-- With no `test` command configured: replace Tests with "none — no test command configured", replace Red/Green with `Check: <build/typecheck/lint command> → expected: <outcome>` lines, and where a command cannot prove the task write the Verify line as `Verify: Manual: <steps>` (the line still starts with `Verify:`). -->
+## Task index
+
+<!-- One entry per task, in execution order (dependencies first), exactly in this form. Fields are separated by " · "; write `deps: none` when there are none; files are repo-relative paths in backticks; the summary is the task's Router summary (at most 500 characters, plain language, no code).
+- T1 — <title> · slice 1 · ACs: AC-1, AC-2 · deps: none · files: `path/one`, `path/two`
+  summary: <Router summary> -->
