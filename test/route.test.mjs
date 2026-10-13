@@ -50,6 +50,21 @@ test('unknown top-level key is a warning, not an error', () => {
   assert.ok(l.warnings.some((w) => w.startsWith('sdd.config.json: ') && w.includes('foo')));
 });
 
+test('paths.index defaults to docs/sdd/index.md and is in the schema', () => {
+  assert.equal(R.defaultConfig().paths.index, 'docs/sdd/index.md');
+  const schema = JSON.parse(readFileSync(new URL('../config/sdd.config.schema.json', import.meta.url), 'utf8'));
+  assert.ok('index' in schema.properties.paths.properties);
+});
+
+test('paths.index must be a non-empty string', () => {
+  for (const bad of [5, '', null]) {
+    const l = R.loadConfig(mkProj({ paths: { index: bad } }));
+    assert.equal(l.ok, false, JSON.stringify(bad));
+    assert.ok(l.error.includes('paths.index'), l.error);
+  }
+  assert.equal(R.loadConfig(mkProj({ paths: { index: 'notes/idx.md' } })).ok, true);
+});
+
 const invalid = [
   ['models.ultra', { models: { ultra: 'x' } }],
   ['stageFloors.developer', { stageFloors: { developer: 'mega' } }],

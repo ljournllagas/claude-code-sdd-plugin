@@ -17,7 +17,7 @@ QUICK: a brief (goal, expected paths, the verify commands, and the rule below).
 2. **Red.** Write the task's `Tests (complete)` code exactly as given into the test files named in `Files`. Run the `Red:` command and confirm it fails **for the stated reason**.
    - Skip Red when the task has `Check:` or `Manual:` instead of Red/Green, or when the prompt says **FF DISPATCH**.
    - If Red is required and the test **passes**, the behaviour already exists: do not continue. Return `TASK-BLOCKED: design-gap — Red passed; behaviour already present: <what>`.
-3. Implement per `Recipe:` so that the tests pass. Create or modify only the files in the task's `Files` list.
+3. Implement per `Recipe:` so that the tests pass. Create or modify only the files in the task's `Files` list. Add nothing the recipe does not call for; when the task's `Reuse:` line names a helper, call it rather than reimplementing it.
 4. Run the `Green:` command (or the `Check:` commands) and make it pass. Then run the `Verify:` command and report its result; the team-lead will run it again independently.
 5. Do not refactor beyond the task. Do not commit. Do not edit files outside the task's Files list — if the work needs one, that is a design gap.
 

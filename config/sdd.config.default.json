@@ -21,7 +21,7 @@
   },
   "riskKeywords": ["delete","drop ","truncate","purge","migrat","password","secret","token","credential","payment","refund","invoice","ssn","gdpr","encrypt"],
   "verify": { "build": null, "test": null, "lint": null, "typecheck": null, "format": null, "testOne": null },
-  "paths":  { "specs": "docs/sdd/specs", "plans": "docs/sdd/plans", "log": ".sdd/decisions.jsonl", "active": ".sdd/active.json" },
+  "paths":  { "specs": "docs/sdd/specs", "plans": "docs/sdd/plans", "log": ".sdd/decisions.jsonl", "active": ".sdd/active.json", "index": "docs/sdd/index.md" },
   "limits": { "reviewRounds": 3, "verifyFailuresPerTier": 2, "reviewFixRounds": 2, "openQuestions": 8, "questionRounds": 2 },
   "guard":  { "ttlHours": 12 }
 }

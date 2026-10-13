@@ -1,7 +1,14 @@
+---
+type: plan
+title: <Feature name>
+description: <One sentence: what this plan builds>
+status: draft
+timestamp: <YYYY-MM-DD>
+---
+
 # <Feature name> — Plan
 
 **Spec:** <path to the approved spec>
-**Status:** draft
 **Task count:** <n>
 
 <!-- Every task block must be executable from its own text plus the repository. A developer agent receives only its block. A task changes one behaviour and touches at most 5 files; split otherwise. Tasks form an acyclic dependency graph. Every `modify` target exists; every `create` target's parent directory exists or is created by an earlier task. -->
@@ -37,6 +44,7 @@ Files:
   - modify  path/to/existing     (symbol: Name; lines/region if known)
 Consumes:  <full signatures/types, each with its defining task ID or "existing: path">
 Produces:  <full signatures/types, errors, side effects>
+Reuse:     <existing code (path and symbol), standard-library or native feature, or installed dependency the Recipe calls; or `none — searched <what was searched>, nothing to reuse`>
 Tests (complete): <full test code, in the project's language>
 Recipe: <numbered prose steps; pseudo-steps only for non-obvious logic; no full implementation bodies>
 Red:    <exact command> → expected: fails because <specific reason>

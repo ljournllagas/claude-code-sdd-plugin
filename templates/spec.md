@@ -1,7 +1,12 @@
-# <Feature name> — Spec
+---
+type: spec
+title: <Feature name>
+description: <One sentence: what this spec decides>
+status: draft
+timestamp: <YYYY-MM-DD>
+---
 
-**Status:** draft
-**Date:** <YYYY-MM-DD>
+# <Feature name> — Spec
 
 <!-- Fill every heading. Write "None identified" rather than omit one. The spec says what and why, never file-by-file how. Write in terms any programming language could satisfy. -->
 

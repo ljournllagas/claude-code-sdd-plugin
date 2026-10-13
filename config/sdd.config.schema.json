@@ -56,7 +56,7 @@
     },
     "paths": {
       "type": "object",
-      "properties": { "specs": { "type": "string" }, "plans": { "type": "string" }, "log": { "type": "string" }, "active": { "type": "string" } }
+      "properties": { "specs": { "type": "string" }, "plans": { "type": "string" }, "log": { "type": "string" }, "active": { "type": "string" }, "index": { "type": "string" } }
     },
     "limits": {
       "type": "object",

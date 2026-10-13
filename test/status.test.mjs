@@ -10,7 +10,7 @@ import * as S from '../bin/status.mjs';
 const STATUS = fileURLToPath(new URL('../bin/status.mjs', import.meta.url));
 
 const PLAN = [
-  '# Plan', '**Status:** executing', '',
+  '---', 'type: plan', 'title: Plan', 'status: executing', '---', '', '# Plan', '',
   '### T1 — Add the helper   [x] done',
   '### T2 — Wire the helper   [ ] pending',
   '### T3 — Update docs [with brackets]   [!] blocked',

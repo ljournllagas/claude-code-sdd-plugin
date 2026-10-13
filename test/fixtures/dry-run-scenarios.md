@@ -19,9 +19,9 @@ Run: `/sdd add a tally(names) function that returns a map of name to count, plus
 - [ ] Triage proposes FULL (or you raise it); you confirm.
 - [ ] Analyst writes `docs/sdd/specs/<slug>.md` with every template heading; open questions are shown to you with recommendations; you answer; the spec is revised.
 - [ ] Spec review runs (round lines `▸ spec review n/3 …`), exits clean or you resolve it; the session **stops** and asks for approval; saying nothing does not advance it.
-- [ ] After you approve, the spec `Status` is `approved` and the planner writes `docs/sdd/plans/<slug>.md`; plan review runs; the session stops for plan approval.
-- [ ] After approval: plan `Status: executing`; marker `base` is set once; each task: marker `in_progress` true then false, a fresh developer, the team-lead runs the Verify, the task heading becomes `[x] done`, a commit containing only that task's files.
-- [ ] One final `code` review over the run diff; report lists tasks, commits, routing summary; plan `Status: done`; marker deleted.
+- [ ] After you approve, the spec's `status:` is `approved` and the planner writes `docs/sdd/plans/<slug>.md`; plan review runs; the session stops for plan approval.
+- [ ] After approval: plan `status: executing`; marker `base` is set once; each task: marker `in_progress` true then false, a fresh developer, the team-lead runs the Verify, the task heading becomes `[x] done`, a commit containing only that task's files.
+- [ ] One final `code` review over the run diff; report lists tasks, commits, routing summary; plan `status: done`; marker deleted.
 
 ## Scenario 3 — Risk-floor refusal
 
@@ -50,6 +50,28 @@ Copy `repo-js` and do **not** run `git init`. Run `/sdd` with a small QUICK requ
 - [ ] No commits are attempted; the team-lead says so once; the plan checklist records progress.
 - [ ] The reviewer received `.sdd/review/<slug>.files` (a list of paths) instead of a diff.
 - [ ] No git-only commands (`git add -N`, `git reset`) were run.
+
+## Scenario 7 — Reuse check on a plan (v0.2)
+
+In a repo that already has a small helper (repo-js: `greet`), run `/sdd` for a FULL request that needs the same behaviour (e.g. a `greetAll(names)` that greets each name).
+- [ ] The plan's tasks each carry a non-empty `Reuse:` line; the greeting task names the existing helper (path and symbol), not a rewrite.
+- [ ] Delete the `Reuse:` line from one task by hand and re-run plan review: the reviewer reports it as a blocker (a missing `Reuse:` line).
+- [ ] Replace the Recipe of one task with one that reimplements the existing helper: the reviewer reports it as a should-fix (or a blocker only if it cites the existing symbol by path and it does the identical thing).
+
+## Scenario 8 — Index read by the analyst (v0.2)
+
+In a project with an approved spec in `docs/sdd/specs/` (frontmatter present), run `/sdd` with a request that overlaps it.
+- [ ] `docs/sdd/index.md` exists and lists the earlier spec under Specs with its status and description; it was regenerated before the analyst was dispatched.
+- [ ] The analyst's dispatch prompt carries an `Index:` line; the new spec cites the related earlier spec in Background and raises the overlap as an open question with a recommendation.
+- [ ] The analyst did not open unrelated specs, and did not edit `docs/sdd/index.md`.
+- [ ] After the spec is approved, `docs/sdd/index.md` shows the new spec as `approved` and `git status` does not trigger a leftover-edit stop for the Index file.
+
+## Scenario 9 — Unindexed legacy artifact (v0.2)
+
+Put a spec written by an earlier Kit (a `**Status:**` line, no frontmatter) in `docs/sdd/specs/`, then run `/sdd-init` or any `/sdd` request.
+- [ ] `docs/sdd/index.md` lists it under Unindexed as `specs/<name>.md — no frontmatter`; it is not silently missing.
+- [ ] Add a `---` frontmatter block (`type`, `title`, `status`) by hand and re-run the Index script (`node <kit>/bin/index.mjs`): it moves into Specs.
+- [ ] Replace the Index with a hand-written file lacking the generated marker: the script refuses to overwrite it, prints one line, and exits 1; the run continues with a one-line warning.
 
 ## Results
 

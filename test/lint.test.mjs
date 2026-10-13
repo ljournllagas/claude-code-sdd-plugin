@@ -5,34 +5,46 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePlanTasks } from '../bin/status.mjs';
 import { detect } from '../bin/detect.mjs';
+import { parseFrontmatter } from '../bin/index.mjs';
 
 export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 const headings = (text, level = 2) => [...text.matchAll(new RegExp(`^${'#'.repeat(level)} (.+)$`, 'gm'))].map((m) => m[1].trim());
 
 // ---------- templates ----------
-test('spec template has every §7.1 heading, in order, and a Status line', () => {
+// A shipped template must itself be valid frontmatter (AC-1, AC-12).
+function templateFields(rel, type) {
+  const r = parseFrontmatter(read(rel));
+  assert.ok(r.fields, `${rel} frontmatter: ${r.reason}`);
+  assert.deepEqual(Object.keys(r.fields), ['type', 'title', 'description', 'status', 'timestamp']);
+  assert.equal(r.fields.type, type);
+  assert.equal(r.fields.status, 'draft');
+  return r.fields;
+}
+
+test('spec template has every §7.1 heading, in order, and valid frontmatter', () => {
   const t = read('templates/spec.md');
   assert.deepEqual(headings(t), [
     'Goal', 'Background', 'Glossary terms', 'Requirements', 'Interfaces and contracts', 'Data and state',
     'Non-functional requirements', 'Risk areas', 'Decisions', 'Out of scope', 'Open questions',
     'Verification approach', 'Accepted risks',
   ]);
-  assert.match(t, /^\*\*Status:\*\* draft$/m);
+  templateFields('templates/spec.md', 'spec');
+  assert.ok(!/^\*\*Date:\*\*/m.test(t));
   assert.ok(t.includes('Unhappy paths'));
   assert.ok(t.includes('AC-1'));
 });
 
 test('plan template has the header fields, matrix, and a parseable task block with every field label', () => {
   const t = read('templates/plan.md');
-  assert.match(t, /^\*\*Status:\*\* draft$/m);
+  templateFields('templates/plan.md', 'plan');
   for (const h of ['**Spec:**', '**Task count:**']) assert.ok(t.includes(h), h);
   assert.deepEqual(headings(t), ['Verify block', 'Accepted risks', 'Coverage matrix', 'Tasks']);
   const tasks = parsePlanTasks(t);
   assert.equal(tasks.length, 1);
   assert.equal(tasks[0].id, 'T1');
   assert.equal(tasks[0].marker, ' ');
-  const labels = ['Satisfies:', 'Depends on:', 'Lenses:', 'Router summary:', 'Files:', 'Consumes:', 'Produces:', 'Tests (complete):', 'Recipe:', 'Red:', 'Green:', 'Verify:', 'Commit:'];
+  const labels = ['Satisfies:', 'Depends on:', 'Lenses:', 'Router summary:', 'Files:', 'Consumes:', 'Produces:', 'Reuse:', 'Tests (complete):', 'Recipe:', 'Red:', 'Green:', 'Verify:', 'Commit:'];
   let at = t.indexOf('### T1');
   for (const l of labels) {
     const i = t.indexOf(l, at);
@@ -215,13 +227,13 @@ const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
-  'bin/detect.mjs', 'bin/route.mjs', 'bin/status.mjs',
+  'bin/detect.mjs', 'bin/index.mjs', 'bin/route.mjs', 'bin/status.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json',
-  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/lint.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
+  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
   'test/helpers/typesafe-mock.mjs',
 ];
 
@@ -229,6 +241,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.2.0');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -251,8 +264,8 @@ test('AC-2: no toolchain names in agents, commands, playbook, templates, bin or 
 });
 
 test('AC-3: scripts import only Node built-ins (sibling Kit modules where documented)', () => {
-  const allowedRelative = { 'bin/status.mjs': ['./route.mjs'] };
-  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'hooks/guard.mjs']) {
+  const allowedRelative = { 'bin/status.mjs': ['./route.mjs'], 'bin/index.mjs': ['./route.mjs'] };
+  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'hooks/guard.mjs']) {
     const text = read(f);
     assert.ok(!/\brequire\s*\(/.test(text), `${f} uses require`);
     assert.ok(!/\bimport\s*\(/.test(text), `${f} uses dynamic import`);
@@ -295,4 +308,38 @@ test('dry-run scenario checklist covers the six scenarios of spec §10', () => {
     'Scenario 1 — QUICK happy path', 'Scenario 2 — FULL happy path', 'Scenario 3 — Risk-floor refusal',
     'Scenario 4 — Review stall', 'Scenario 5 — Task escalation to human', 'Scenario 6 — No-git project',
   ]) assert.ok(t.includes(`## ${h}`), h);
+});
+
+// ---------- v0.2: frontmatter status, Index, reuse check ----------
+test('no Kit file outside test/ uses the bold Status line (status lives in the frontmatter)', () => {
+  for (const f of walk(ROOT).filter((x) => !x.startsWith('test/'))) {
+    assert.ok(!read(f).includes('**Status:**'), `${f} still names the bold Status line`);
+  }
+});
+
+test('v0.2 rules are present in the agent prompts', () => {
+  const must = {
+    analyst: ['Index:', 'needs to exist', 'drafting dispatch', 'generated'],
+    planner: ['Reuse:', 'none — searched', 'already-installed dependency', 'unless the spec itself names it'],
+    developer: ['Reuse:', 'add nothing the recipe does not call for', 'rather than reimplementing'],
+    reviewer: ['Reuse:', 'no `Reuse:` line', 'identical', 'frontmatter', 'should-fix'],
+  };
+  for (const [name, tokens] of Object.entries(must)) {
+    const t = read(`agents/${name}.md`).toLowerCase();
+    for (const tok of tokens) assert.ok(t.includes(tok.toLowerCase()), `${name}.md must contain ${JSON.stringify(tok)}`);
+  }
+});
+
+test('playbook and /sdd-init run the Index script and define the status edit', () => {
+  const t = read('playbook/team-lead.md');
+  for (const tok of ['bin/index.mjs', 'status edit', 'cfg.paths.index', 'before the first analyst dispatch', '.*.tmp']) {
+    assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+  }
+  assert.ok(/analyst\*\*\n```\n[\s\S]*?\nIndex: <cfg\.paths\.index>\n/.test(t), 'analyst dispatch template carries the Index line');
+  assert.ok(read('commands/sdd-init.md').includes('bin/index.mjs'));
+});
+
+test('dry-run scenarios cover a task missing Reuse:, an analyst run with an Index, and an Unindexed legacy artifact', () => {
+  const t = read('test/fixtures/dry-run-scenarios.md');
+  for (const tok of ['Reuse:', 'Unindexed', 'docs/sdd/index.md']) assert.ok(t.includes(tok), tok);
 });
