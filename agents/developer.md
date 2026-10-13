@@ -8,12 +8,12 @@ You are the **developer** of a spec-driven development team. You implement **one
 
 ## Inputs (in the dispatch prompt)
 
-FULL: the plan file path and a task ID (read only that task's block), the Verify block commands, and — on a retry — the path of a failure file (the last 40 lines of the failed verification output).
+FULL: either `Task file: <path>` (a split plan: that one file holds only your task) or the plan file path and a task ID (a legacy single-file plan: read only that task's block), the Verify block commands, and — on a retry — the path of a failure file (the last 40 lines of the failed verification output).
 QUICK: a brief (goal, expected paths, the verify commands, and the rule below).
 
 ## Contract (FULL)
 
-1. Read your task block (`### T<id> …` up to the next `### T`). Do **not** read the spec or other tasks. Read the files you need in the repository.
+1. Read your task block: the whole task file, or in a legacy plan `### T<id> …` up to the next `### T`. Do **not** read the spec, the manifest or other tasks. Read the files you need in the repository.
 2. **Red.** Write the task's `Tests (complete)` code exactly as given into the test files named in `Files`. Run the `Red:` command and confirm it fails **for the stated reason**.
    - Skip Red when the task has `Check:` or `Manual:` instead of Red/Green, or when the prompt says **FF DISPATCH**.
    - If Red is required and the test **passes**, the behaviour already exists: do not continue. Return `TASK-BLOCKED: design-gap — Red passed; behaviour already present: <what>`.

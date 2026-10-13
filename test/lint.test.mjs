@@ -85,7 +85,7 @@ function frontmatter(rel) {
 
 const AGENT_TOOLS = {
   analyst: 'Read, Glob, Grep, Write, Bash',
-  planner: 'Read, Glob, Grep, Write',
+  planner: 'Read, Glob, Grep, Write, Edit',
   developer: 'Read, Glob, Grep, Edit, Write, Bash',
   reviewer: 'Read, Glob, Grep',
 };
@@ -102,9 +102,9 @@ for (const [name, tools] of Object.entries(AGENT_TOOLS)) {
 test('agent return formats the playbook parses are documented', () => {
   const must = {
     analyst: ['SPEC: ', 'OPEN QUESTIONS (', 'OPEN QUESTIONS: none', '[BLOCKING|NON-BLOCKING]', 'Recommended:', 'docs/sdd/specs/', 'CONTEXT.md'],
-    planner: ['PLAN: ', 'TASKS: ', 'SPEC-GAP: ', 'Verify block', 'verbatim', 'Check:', 'Manual:', 'none — no test command configured', 'Router summary', '5 files'],
-    developer: ['TASK-DONE ', 'TASK-BLOCKED: ', 'design-gap', 'defect', 'environment', 'Files changed:', 'Files created:', 'Red:', 'Green:', 'FF DISPATCH', 'QUICK'],
-    reviewer: ['MODE: spec', 'MODE: plan', 'MODE: code', 'Score:', 'Blockers (', 'Should-fix (', 'Solid:', 'Verdict:', 'Ready', 'Blockers must be resolved first', 'security', 'data', 'contract', 'performance', 'LENSES:'],
+    planner: ['PLAN: ', 'TASKS: ', 'SLICES: ', 'EXPANDED: ', 'OUTLINE-GAP: ', 'MODE: OUTLINE', 'MODE: EXPAND', 'Slice cap', 'one `Write` call per task file', 'SPEC-GAP: ', 'Verify block', 'verbatim', 'Check:', 'Manual:', 'none — no test command configured', 'Router summary', '5 files'],
+    developer: ['Task file:', 'TASK-DONE ', 'TASK-BLOCKED: ', 'design-gap', 'defect', 'environment', 'Files changed:', 'Files created:', 'Red:', 'Green:', 'FF DISPATCH', 'QUICK'],
+    reviewer: ['Scope:', 'outline', 'MODE: spec', 'MODE: plan', 'MODE: code', 'Score:', 'Blockers (', 'Should-fix (', 'Solid:', 'Verdict:', 'Ready', 'Blockers must be resolved first', 'security', 'data', 'contract', 'performance', 'LENSES:'],
   };
   for (const [name, tokens] of Object.entries(must)) {
     const t = read(`agents/${name}.md`);
