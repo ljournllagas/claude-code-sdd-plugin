@@ -382,3 +382,26 @@ test('v0.3 dry-run scenarios cover cutoff resume, the size gate and a legacy pla
     assert.ok(t.includes(`## ${h}`), h);
   }
 });
+
+// ---------- v0.3 final-review fixes ----------
+test('v0.3 playbook: resume tells mid-expansion from requested changes; legacy, return_stage, progress and total rules are present', () => {
+  const t = read('playbook/team-lead.md');
+  const tokens = [
+    // review records carry a scope, so resume can tell "changes requested at a gate" from "cut mid-expansion"
+    '· scope slice <n>', 'records with `scope outline`', 'records with `scope slice <n>`',
+    // legacy detection and the legacy plan paragraph
+    'a run at `plan-draft` or later with no `slice` is a legacy run', 'the plan file already exists, so no planner dispatch is needed', 'a legacy run, whose marker has no `slice`, is exempt',
+    // amendments
+    'OUTLINE-GAP` raised while a plan is first being written', '"outline-draft"|"plan-draft"', 'set `slice.total`', 'Mechanical check after an amendment',
+    // runaway expansion
+    'made no progress',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
+
+test('v0.3 planner prompt: amendments keep the index in agreement; EXPAND copies dependencies\' Produces', () => {
+  const t = read('agents/planner.md');
+  for (const tok of ['update its entry in the manifest', 'copy that task\'s `Produces` signatures verbatim']) {
+    assert.ok(t.includes(tok), `planner.md must contain ${JSON.stringify(tok)}`);
+  }
+});

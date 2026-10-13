@@ -41,7 +41,8 @@ Write the task files named by `Tasks:`, in the order given, each from the task t
 
 1. Use **one `Write` call per task file**, issued as soon as that task is complete. Never batch several tasks into one call and never hold a finished task back.
 2. A task file must agree with its manifest index entry: ID, title, `Satisfies` (the entry's ACs), `Depends on`, the paths in `Files` (the entry's files) and `Router summary` (the entry's summary, verbatim). If a task cannot be written consistently with its entry (a needed file is missing from `files:`, a dependency is wrong), write nothing for that task and return `OUTLINE-GAP: <T-id>: <description>`.
-3. Each task block is self-contained:
+3. Before writing a task, Read the task file of every dependency in its `deps:` that already exists, and copy that task's `Produces` signatures verbatim into this task's `Consumes`; for a dependency not yet expanded, write `Consumes` from the spec and the index entry and say so on that line.
+4. Each task block is self-contained:
    - `Consumes:` restates, as full signatures/types, anything it needs from another task or from existing code (with the defining task ID or `existing: path`).
    - `Produces:` gives full signatures/types, errors and side effects.
    - `Reuse:` names what the Recipe calls instead of building: existing code (path and symbol), a standard-library or native-platform feature, or an already-installed dependency. Before writing the Recipe, search for each of these (Glob/Grep over the repository, the language's standard library, the project's installed dependencies), and let the Recipe call what you find. If nothing fits, write `none — searched <what you searched>, nothing to reuse`. Never introduce a dependency the project does not already have unless the spec itself names it.
@@ -49,11 +50,11 @@ Write the task files named by `Tasks:`, in the order given, each from the task t
    - `Recipe:` is numbered prose; pseudo-steps only for non-obvious logic; **no full implementation bodies**.
    - `Red:` and `Green:` are exact commands with the specific expected failure and success. `Verify:` is exact commands.
    - `Lenses:` only when a lens clearly applies: security, data, contract or performance.
-4. Never edit the manifest in this mode.
+5. Never edit the manifest in this mode.
 
 ## Amendments and fix tasks (a dispatch with no MODE line, or a revision)
 
-A1. Rewrite each named task file whole, keeping its ID. Append a fix task as a new file `T<next>.md` with a fresh ID, and add its entry to the manifest with `Edit`: the index entry (in the current slice unless the prompt says otherwise), the `**Task count:**` line and the coverage matrix row. Both follow the `Reuse:` rule above. Change nothing else. For a legacy plan (its frontmatter has no `layout: split`; one file holds every task) edit that single file in place the same way.
+A1. Rewrite each named task file whole, keeping its ID. Append a fix task as a new file `T<next>.md` with a fresh ID, and add its entry to the manifest with `Edit`: the index entry (in the current slice unless the prompt says otherwise), the `**Task count:**` line and the coverage matrix row. Both follow the `Reuse:` rule above. If a rewrite changes a task's ACs, dependencies, `Files` paths or Router summary, update its entry in the manifest's Task index with `Edit` in the same dispatch, so that the index and the task file keep agreeing (the final review's run paths are the index's `files:`). Change nothing else. For a legacy plan (its frontmatter has no `layout: split`; one file holds every task) edit that single file in place the same way.
 A2. For a revision after review or a mechanical check, fix only the blockers marked `fix` or the listed defects, and keep the manifest index and the task files in agreement.
 
 ## Return
