@@ -227,13 +227,13 @@ const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
-  'bin/detect.mjs', 'bin/index.mjs', 'bin/route.mjs', 'bin/status.mjs',
+  'bin/detect.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/status.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json',
-  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
+  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
   'test/helpers/typesafe-mock.mjs',
 ];
 
@@ -264,8 +264,8 @@ test('AC-2: no toolchain names in agents, commands, playbook, templates, bin or 
 });
 
 test('AC-3: scripts import only Node built-ins (sibling Kit modules where documented)', () => {
-  const allowedRelative = { 'bin/status.mjs': ['./route.mjs'], 'bin/index.mjs': ['./route.mjs'] };
-  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'hooks/guard.mjs']) {
+  const allowedRelative = { 'bin/status.mjs': ['./route.mjs'], 'bin/index.mjs': ['./route.mjs'], 'bin/plan.mjs': ['./route.mjs', './index.mjs'] };
+  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'hooks/guard.mjs']) {
     const text = read(f);
     assert.ok(!/\brequire\s*\(/.test(text), `${f} uses require`);
     assert.ok(!/\bimport\s*\(/.test(text), `${f} uses dynamic import`);
