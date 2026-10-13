@@ -753,3 +753,24 @@ test('the plan size limits default to 12 tasks per slice and 4 per expansion bat
   assert.equal(c.limits.expandBatchTasks, 4);
   assert.equal(R.loadConfig(mkProj({ limits: { sliceMaxTasks: 6 } })).config.limits.expandBatchTasks, 4);
 });
+
+// ---------- the +1 marker that outcome logging reads (spec 2026-10-13-sdd-outcome-logging, AC-21) ----------
+// These pin existing behaviour on reasons produced by the router's own functions: status.mjs detects "bump fired"
+// from this ASCII token, so a rewording of the router's reason must fail here first.
+const BUMP_TOKEN = /(^|\s)\+1(\s|$)/;
+
+test('outcome marker: a decision whose bump fired carries a standalone +1; one whose bump did not does not', () => {
+  assert.match(dec({ ambiguous: 0.9 }).reason, BUMP_TOKEN);
+  assert.match(dec({ irreversible: 0.9 }).reason, BUMP_TOKEN);
+  assert.match(dec({ complexityConfidence: 0.1 }).reason, BUMP_TOKEN);
+  assert.match(dec({ complexityScore: 2.5, ambiguous: 0.9 }).reason, BUMP_TOKEN, 'fired even though already deep');
+  assert.doesNotMatch(dec({}).reason, BUMP_TOKEN);
+  assert.doesNotMatch(dec({ complexityScore: 0.2 }, { stage: 'analyst' }).reason, BUMP_TOKEN, 'a floor is not a bump');
+  assert.doesNotMatch(dec({ complexityScore: 0.2 }, { stage: 'developer' }, ['auth']).reason, BUMP_TOKEN, 'a risk minimum is not a bump');
+});
+
+test('outcome marker: no escalate() reason carries it, on any of its three branches', () => {
+  for (const o of [{ last_tier: 'light', failures_at_last_tier: 1 }, { last_tier: 'light', failures_at_last_tier: 2 }, { last_tier: 'deep', failures_at_last_tier: 2 }]) {
+    assert.doesNotMatch(esc(o).reason, BUMP_TOKEN, JSON.stringify(o));
+  }
+});

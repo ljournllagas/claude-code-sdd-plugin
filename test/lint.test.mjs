@@ -243,13 +243,13 @@ const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
-  'bin/detect.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/status.mjs',
+  'bin/detect.mjs', 'bin/index.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/status.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json', 'templates/task.md',
-  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
+  'test/detect.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/status.test.mjs',
   'test/helpers/typesafe-mock.mjs',
 ];
 
@@ -280,8 +280,11 @@ test('AC-2: no toolchain names in agents, commands, playbook, templates, bin or 
 });
 
 test('AC-3: scripts import only Node built-ins (sibling Kit modules where documented)', () => {
-  const allowedRelative = { 'bin/status.mjs': ['./route.mjs', './plan.mjs'], 'bin/index.mjs': ['./route.mjs'], 'bin/plan.mjs': ['./route.mjs', './index.mjs'] };
-  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'hooks/guard.mjs']) {
+  const allowedRelative = {
+    'bin/status.mjs': ['./route.mjs', './plan.mjs', './outcome.mjs'], 'bin/index.mjs': ['./route.mjs'], 'bin/plan.mjs': ['./route.mjs', './index.mjs'],
+    'bin/outcome.mjs': ['./route.mjs'],
+  };
+  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'bin/outcome.mjs', 'hooks/guard.mjs']) {
     const text = read(f);
     assert.ok(!/\brequire\s*\(/.test(text), `${f} uses require`);
     assert.ok(!/\bimport\s*\(/.test(text), `${f} uses dynamic import`);
@@ -403,6 +406,29 @@ test('v0.3 playbook: resume tells mid-expansion from requested changes; legacy, 
     'made no progress',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
+
+// ---------- outcome logging (spec 2026-10-13-sdd-outcome-logging) ----------
+test('outcome logging: the playbook states the marker shape, the line rules and the quoting', () => {
+  const t = read('playbook/team-lead.md');
+  const tokens = [
+    'bin/outcome.mjs',
+    // AC-9: the one new marker field, shown in the exact entry shape
+    '{attempt_tier, last_tier, failures_at_last_tier, in_progress, routed}',
+    // AC-10 to AC-16: the paragraph and its rules
+    '**Outcome line.**', 'first_attempt', 'subagent_tokens', 'duration_ms',
+    'A user\'s answer never produces a line', 'never writes a line for a verdict reached before the cut',
+    'double-quote the `--reason` value',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+  // no counter was added to the marker
+  assert.ok(!t.includes('`attempts`'), 'the marker has no attempts counter');
+});
+
+test('outcome logging: the dry-run checklist covers outcome lines', () => {
+  const t = read('test/fixtures/dry-run-scenarios.md');
+  assert.ok(t.includes('## Scenario 13 — Outcome lines'));
+  for (const tok of ['first_attempt', 'routed', 'outcome.mjs', 'I fixed it']) assert.ok(t.includes(tok), tok);
 });
 
 test('v0.3 planner prompt: amendments keep the index in agreement; EXPAND copies dependencies\' Produces', () => {

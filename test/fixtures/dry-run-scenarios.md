@@ -99,6 +99,20 @@ In a project, put a plan written by v0.2 (frontmatter without `layout`, all task
 - [ ] `/sdd-status` prints `task <done>/<total>` with no `slice` and no `expanded` text.
 - [ ] `node <kit>/bin/plan.mjs check docs/sdd/plans/<slug>.md --plan` prints `ok` (or the Task count / Verify defects, never a layout error).
 
+## Scenario 13 — Outcome lines
+
+Set `limits.verifyFailuresPerTier` to 1 and make one task's verify fail once (for example a test that fails on the first run only, through a marker file the test creates). Run a small FULL request with three tasks. After each step, read `.sdd/decisions.jsonl` (lines with `"kind":"outcome"`) and `.sdd/active.json`.
+- [ ] Before a task is dispatched, its `tasks[<id>]` entry has `attempt_tier` and `routed` (`{source, reason}` of the decision just returned); no other new key is present.
+- [ ] The failing task: after the failed verify, one `outcome.mjs` line with `result: "fail"` and `first_attempt: true` was appended after the failure file was written and before the retry was routed; no duplicate appears after the retry is dispatched.
+- [ ] The retry that passes: one line with `result: "pass"`, `first_attempt: false`, `source: "escalation"` (or the router's retry reason), whose `tier` equals the entry's `attempt_tier`.
+- [ ] A task that passes at once: `first_attempt: true`, `result: "pass"`, `source` and `reason` equal to the matching decision line; `duration_ms` and `agent_tokens` are numbers (or null if the dispatch result had no `<usage>` block).
+- [ ] `/sdd-status` prints an `Outcomes:` block whose first-attempt ratio counts only the `first_attempt: true` pass and fail lines.
+- [ ] Cut the session (close the window) after the failure file exists and before the retry is dispatched; resume with `/sdd`. Exactly one `fail` line exists for that attempt, and the retry's line has `first_attempt: false`.
+- [ ] Make a task hit `TASK-BLOCKED: design-gap`: one line with `result: "blocked"` was appended before the amendment began, and the replaced task's next line has `first_attempt: true`.
+- [ ] Exhaust a task at `deep` so the session stops with **Task needs a human**, choose **I fixed it** and let its Verify pass: no outcome line is written for that verify, and `/sdd-status`'s counts do not change.
+- [ ] A `Manual:` task (unset `verify.test` first): answering **Confirm done** or **Not done** writes no outcome line.
+- [ ] Resume at `quick-review` in a QUICK run after a cut: the pass line already written is not duplicated.
+
 ## Results
 
 Date: ____  Claude Code version: ____  Kit commit: ____

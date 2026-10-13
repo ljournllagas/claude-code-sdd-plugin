@@ -138,3 +138,121 @@ test('CLI reads a split plan: markers come from task files, unexpanded tasks are
   assert.equal(r.status, 0, r.stderr);
   assert.ok(r.stdout.includes('Active run: p · lane FULL · stage executing · slice 1/2 · task 1/3 (2 expanded)'), r.stdout);
 });
+
+// ---------- outcome lines (spec 2026-10-13-sdd-outcome-logging, AC-17 to AC-20) ----------
+const oc = (o = {}) => JSON.stringify({
+  ts: '2026-10-13T08:00:00.000Z', kind: 'outcome', stage: 'developer', slug: 's', task: 'T1', first_attempt: true, tier: 'standard',
+  source: 'typesafe', reason: 'complexity 1.4 → standard', result: 'pass', duration_ms: null, agent_tokens: null, ...o,
+});
+const BUMPED = 'complexity 1.4 → standard; ambiguous 0.71 → +1 → deep';
+const OUTCOME_LOG = [
+  e('light', 'typesafe'),
+  e('standard', 'escalation'),
+  oc({ reason: BUMPED, tier: 'deep', result: 'pass', duration_ms: 60000, agent_tokens: 1000 }),
+  oc({ tier: 'standard', result: 'fail', duration_ms: 120000 }),
+  oc({ tier: 'light', result: 'pass', agent_tokens: 500 }),
+  oc({ first_attempt: false, tier: 'deep', source: 'escalation', reason: 'retry at same tier (1/2 failures at deep)', result: 'pass', duration_ms: 30000, agent_tokens: 2000 }),
+  oc({ tier: 'deep', source: 'fallback', reason: 'timeout', result: 'pass' }),
+  oc({ result: 'blocked', duration_ms: 0, agent_tokens: 0 }),
+  oc({ tier: 'ultra' }),
+].join('\n');
+
+test('summarizeLog: outcome lines are counted apart from decisions; a malformed one is unreadable', () => {
+  const s = S.summarizeLog(OUTCOME_LOG);
+  assert.equal(s.total, 2);
+  assert.equal(s.skipped, 1);
+  const o = s.outcomes;
+  assert.equal(o.total, 6);
+  assert.deepEqual(o.byResult, { pass: 4, fail: 1, blocked: 1 });
+  assert.deepEqual(o.firstAttempt, { pass: 3, fail: 1 });
+  assert.deepEqual(o.firstAttemptByTier, { light: { pass: 1, fail: 0 }, standard: { pass: 0, fail: 1 }, deep: { pass: 2, fail: 0 } });
+  assert.deepEqual(o.bump, { fired: { pass: 1, fail: 0 }, notFired: { pass: 1, fail: 1 } });
+  assert.equal(o.durationMs, 210000);
+  assert.equal(o.durationCount, 4);
+  assert.equal(o.agentTokens, 3500);
+  assert.equal(o.tokensCount, 4);
+});
+
+test('summarizeLog: the bump token is a standalone +1, not any plus sign', () => {
+  const s = S.summarizeLog([
+    oc({ reason: 'risk auth+money → standard', result: 'pass' }),
+    oc({ reason: 'x +1 → deep', result: 'pass' }),
+    oc({ reason: '+1', result: 'fail' }),
+    oc({ reason: 'cost +10 units', result: 'fail' }),
+  ].join('\n'));
+  assert.deepEqual(s.outcomes.bump, { fired: { pass: 1, fail: 1 }, notFired: { pass: 1, fail: 1 } });
+});
+
+test('summarizeLog: a log with no outcome lines has zeroed outcomes', () => {
+  const s = S.summarizeLog(e('light', 'typesafe'));
+  assert.equal(s.outcomes.total, 0);
+  assert.deepEqual(s.outcomes.firstAttempt, { pass: 0, fail: 0 });
+});
+
+test('formatStatus: the Outcomes block, exactly', () => {
+  const out = S.formatStatus({ active: null, tasks: null, summary: S.summarizeLog(OUTCOME_LOG) });
+  assert.equal(out, [
+    'No active run.',
+    'Decisions: 2 delegations',
+    '  by tier:   light 1 · standard 1 · deep 0',
+    '  by source: typesafe 1 · fallback 0 · escalation 1 · human 0',
+    '  escalations: 1',
+    '  fallback share: 0%',
+    '  TypeSafe tokens: 0 in / 0 out',
+    'Outcomes: 6 attempts · pass 4 · fail 1 · blocked 1',
+    '  first attempt: 3/4 passed (75%) · light 1/1 · standard 0/1 · deep 2/2',
+    '  bump fired: 1/1 passed · no bump: 1/2 passed (first attempt, TypeSafe)',
+    '  agent tokens: 3,500 over 4 attempts · duration: 3m 30s over 4 attempts',
+    '  (1 unreadable log line skipped)',
+    '',
+  ].join('\n'));
+});
+
+test('formatStatus: zero denominators print n/a, the cost line is dropped, singular is used', () => {
+  const none = S.formatStatus({ active: null, tasks: null, summary: S.summarizeLog([oc({ result: 'blocked' }), oc({ first_attempt: false, result: 'pass' })].join('\n')) });
+  assert.equal(none, [
+    'No active run.', 'No decisions logged yet.',
+    'Outcomes: 2 attempts · pass 1 · fail 0 · blocked 1',
+    '  first attempt: n/a',
+    '  bump fired: n/a · no bump: n/a (first attempt, TypeSafe)',
+    '',
+  ].join('\n'));
+  const one = S.formatStatus({ active: null, tasks: null, summary: S.summarizeLog(oc({ duration_ms: 3600000, agent_tokens: 10 })) });
+  assert.ok(one.includes('Outcomes: 1 attempt · pass 1 · fail 0 · blocked 0\n'), one);
+  assert.ok(one.includes('  first attempt: 1/1 passed (100%) · standard 1/1\n'), one);
+  assert.ok(one.includes('  agent tokens: 10 over 1 attempt · duration: 1h 00m over 1 attempt\n'), one);
+});
+
+test('formatStatus: durations truncate; only the count that reported is shown', () => {
+  const t = (ms) => S.formatStatus({ active: null, tasks: null, summary: S.summarizeLog(oc({ duration_ms: ms })) });
+  assert.ok(t(0).includes('duration: 0m 00s over 1 attempt'));
+  assert.ok(t(59999).includes('duration: 0m 59s'));
+  assert.ok(t(3599999).includes('duration: 59m 59s'));
+  assert.ok(t(7384000).includes('duration: 2h 03m'));
+  assert.ok(!t(1000).includes('agent tokens'));
+});
+
+test('formatStatus: a log with no outcome lines is exactly the pre-outcome output', () => {
+  const summary = S.summarizeLog([e('light', 'typesafe', { input_tokens: 1400, output_tokens: 300 }), e('standard', 'fallback'), '{"bad'].join('\n'));
+  assert.equal(S.formatStatus({ active: null, tasks: null, summary }), [
+    'No active run.',
+    'Decisions: 2 delegations',
+    '  by tier:   light 1 · standard 1 · deep 0',
+    '  by source: typesafe 1 · fallback 1 · escalation 0 · human 0',
+    '  escalations: 0',
+    '  fallback share: 50%',
+    '  TypeSafe tokens: 1,400 in / 300 out',
+    '  (1 unreadable log line skipped)',
+    '',
+  ].join('\n'));
+});
+
+test('CLI shows the Outcomes block from the project log', () => {
+  const d = mkdtempSync(join(tmpdir(), 'sdd status '));
+  mkdirSync(join(d, '.sdd'));
+  writeFileSync(join(d, '.sdd', 'decisions.jsonl'), [e('light', 'typesafe'), oc({ result: 'fail' })].join('\n') + '\n');
+  const r = spawnSync(process.execPath, [STATUS], { cwd: d, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.stdout.includes('Outcomes: 1 attempt · pass 0 · fail 1 · blocked 0'), r.stdout);
+  assert.ok(r.stdout.includes('first attempt: 0/1 passed (0%) · standard 0/1'), r.stdout);
+});
