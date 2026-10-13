@@ -343,3 +343,14 @@ test('dry-run scenarios cover a task missing Reuse:, an analyst run with an Inde
   const t = read('test/fixtures/dry-run-scenarios.md');
   for (const tok of ['Reuse:', 'Unindexed', 'docs/sdd/index.md']) assert.ok(t.includes(tok), tok);
 });
+
+// ---------- v0.3: resumable planning and size-gated slices ----------
+
+test('v0.3 config: the two new limits are in the default config and the schema', () => {
+  const def = JSON.parse(read('config/sdd.config.default.json'));
+  assert.equal(def.limits.sliceMaxTasks, 12);
+  assert.equal(def.limits.expandBatchTasks, 4);
+  const schema = JSON.parse(read('config/sdd.config.schema.json'));
+  assert.ok('sliceMaxTasks' in schema.properties.limits.properties);
+  assert.ok('expandBatchTasks' in schema.properties.limits.properties);
+});

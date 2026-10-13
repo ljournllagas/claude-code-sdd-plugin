@@ -77,6 +77,8 @@ const invalid = [
   ['router.enabled', { router: { enabled: 'yes' } }],
   ['limits.verifyFailuresPerTier', { limits: { verifyFailuresPerTier: 0 } }],
   ['limits.reviewRounds', { limits: { reviewRounds: 2.5 } }],
+  ['limits.sliceMaxTasks', { limits: { sliceMaxTasks: 0 } }],
+  ['limits.expandBatchTasks', { limits: { expandBatchTasks: 1.5 } }],
   ['riskPaths.auth.minTier', { riskPaths: { auth: { minTier: 'nope' } } }],
   ['verify.build', { verify: { build: 42 } }],
   ['version', { version: 2 }],
@@ -743,4 +745,11 @@ test('route --check-config: ok or a one-line error', async () => {
   assert.equal(bad.code, 1);
   assert.equal(bad.stdout, '');
   assert.ok(bad.stderr.includes('limits.reviewRounds'));
+});
+
+test('the plan size limits default to 12 tasks per slice and 4 per expansion batch', () => {
+  const c = R.defaultConfig();
+  assert.equal(c.limits.sliceMaxTasks, 12);
+  assert.equal(c.limits.expandBatchTasks, 4);
+  assert.equal(R.loadConfig(mkProj({ limits: { sliceMaxTasks: 6 } })).config.limits.expandBatchTasks, 4);
 });
