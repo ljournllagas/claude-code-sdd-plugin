@@ -317,3 +317,34 @@ test('an outline whose only slice has no tasks is a defect, never ok', () => {
   const p = project({ tasks: [], slices: [{ n: 1, title: 'All' }], expanded: [], manifestOpts: { count: 0, matrix: [] } });
   assert.deepEqual(check(p, { scope: 'outline' }), ['manifest: slice 1 has no tasks']);
 });
+
+// ---------- final-review fixes ----------
+test('a fix task appended to an executed slice does not make later slice checks fail the cap', () => {
+  const fix = { id: 'T4', title: 'Fix it', slice: 1, acs: ['AC-1'], deps: ['T2'], files: ['src/fix.js'], summary: 'Fix.' };
+  const tasks = [...TASKS, fix]; // slice 1 now holds T1, T2, T4: one over the cap of 2
+  const executed = project({ tasks, files: { T1: taskFile(TASKS[0], { marker: '[x] done' }) } });
+  assert.deepEqual(check(executed, { scope: 'slice', slice: 2 }), []);
+  const notStarted = project({ tasks });
+  assert.ok(check(notStarted, { scope: 'slice', slice: 2 }).includes('manifest: slice 1 has 3 tasks (limit 2)'));
+});
+
+test('a manifest without layout: split is named as such, never ok and never read as a legacy plan', () => {
+  const p = project({ manifestOpts: { fm: { layout: undefined } }, expanded: [] });
+  for (const opts of [{ scope: 'outline' }, { scope: 'slice', slice: 1 }]) {
+    const d = check(p, opts);
+    assert.equal(d.length, 1, d.join('\n'));
+    assert.match(d[0], /^manifest: not a split plan \(frontmatter lacks layout: split\)/);
+  }
+  const plan = check(p, { scope: 'plan' });
+  assert.deepEqual(plan, ['manifest: has Slices or a Task index but its frontmatter lacks layout: split']);
+  const empty = project({ tasks: [], slices: [], expanded: [], manifestOpts: { count: 0, matrix: [], fm: { layout: undefined } } });
+  assert.notDeepEqual(check(empty, { scope: 'outline' }), []);
+});
+
+test('check input handling: --spec needs a value; an unknown --slice is a defect, never ok', () => {
+  const one = project({ slices: [{ n: 1, title: 'All' }], tasks: TASKS.map((t) => ({ ...t, slice: 1 })) });
+  assert.equal(cli(one.dir, 'check', one.rel, '--plan', '--spec').status, 2);
+  const s = cli(one.dir, 'check', one.rel, '--slice', '9');
+  assert.equal(s.status, 1);
+  assert.ok(s.stdout.includes('manifest: slice 9 is not listed under Slices'), s.stdout);
+});

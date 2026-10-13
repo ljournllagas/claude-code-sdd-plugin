@@ -161,6 +161,15 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
   const m = plan.manifest;
 
   if (plan.layout === 'single') {
+    if (scope === 'outline' || scope === 'slice') {
+      const why = m.fields === null ? m.frontmatterReason : 'frontmatter lacks layout: split';
+      add('manifest', `not a split plan (${why}); a legacy plan is checked with --plan`);
+      return defects;
+    }
+    if (m.index.length > 0 || m.slices.length > 0) {
+      add('manifest', 'has Slices or a Task index but its frontmatter lacks layout: split');
+      return defects;
+    }
     if (m.count === null) add('manifest', 'no Task count');
     else if (m.count !== plan.tasks.length) add('manifest', `Task count ${m.count} but ${plan.tasks.length} task headings`);
     for (const t of plan.tasks) if (!t.parsed.hasVerify) add(t.id, 'no Verify: line');
@@ -181,13 +190,16 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
   if (m.slices.length === 0) add('manifest', 'no slices listed');
   m.slices.forEach((s, i) => { if (s.n !== i + 1) add('manifest', `slice ${s.n} is out of sequence (expected ${i + 1})`); });
   const listed = new Set(m.slices.map((s) => s.n));
+  if (scope === 'slice' && !listed.has(slice)) add('manifest', `slice ${slice} is not listed under Slices`);
   for (const e of m.index) if (!listed.has(e.slice)) add(e.id, `slice ${e.slice} is not listed under Slices`);
+  // A slice with a started or finished task is frozen: a fix task appended to it may exceed the cap.
+  const frozen = new Set(plan.tasks.filter((t) => t.marker === 'x' || t.marker === '!').map((t) => t.slice));
   for (const s of m.slices) {
     const n = m.index.filter((e) => e.slice === s.n).length;
     if (n === 0) add('manifest', `slice ${s.n} has no tasks`);
-    if (n > sliceMax) add('manifest', `slice ${s.n} has ${n} tasks (limit ${sliceMax})`);
+    if (n > sliceMax && !frozen.has(s.n)) add('manifest', `slice ${s.n} has ${n} tasks (limit ${sliceMax})`);
   }
-  if (m.index.length <= sliceMax && m.slices.length > 1) {
+  if (m.index.length <= sliceMax && m.slices.length > 1 && frozen.size === 0) {
     add('manifest', `${m.index.length} tasks fit one slice (limit ${sliceMax}) but ${m.slices.length} slices are listed`);
   }
 
@@ -244,10 +256,10 @@ export function run(argv, cwd = process.cwd()) {
     const a = rest[i];
     if (a === '--outline' || a === '--plan') flags.scope = a.slice(2);
     else if (a === '--slice') { flags.scope = 'slice'; flags.slice = Number(rest[++i]); }
-    else if (a === '--spec') flags.spec = rest[++i];
+    else if (a === '--spec') { flags.spec = rest[++i]; if (flags.spec === undefined) flags.specMissing = true; }
     else pos.push(a);
   }
-  const bad = (cmd !== 'tasks' && cmd !== 'check') || pos.length !== 1
+  const bad = (cmd !== 'tasks' && cmd !== 'check') || pos.length !== 1 || flags.specMissing === true
     || (flags.scope === 'slice' && !(Number.isInteger(flags.slice) && flags.slice > 0))
     || (cmd === 'tasks' && (flags.scope !== undefined || flags.spec !== undefined));
   if (bad) { err.push(USAGE); return done(2); }
