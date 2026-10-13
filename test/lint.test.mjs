@@ -251,7 +251,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.2.0');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.3.0');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
