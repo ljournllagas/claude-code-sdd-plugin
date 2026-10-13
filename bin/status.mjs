@@ -3,17 +3,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { loadConfig } from './route.mjs';
+import { parsePlanTasks, loadPlan } from './plan.mjs';
 
-const TASK_RE = /^### (T\d+) — (.+?)\s+\[([ x!])\](?: (?:pending|done|blocked|skipped))?\s*$/;
-
-export function parsePlanTasks(text) {
-  const tasks = [];
-  for (const line of String(text).split(/\r?\n/)) {
-    const m = TASK_RE.exec(line);
-    if (m) tasks.push({ id: m[1], title: m[2], marker: m[3] });
-  }
-  return tasks;
-}
+// Re-exported: the plan parser lives in plan.mjs since v0.3, and callers still import it from here.
+export { parsePlanTasks };
 
 export function summarizeLog(text) {
   const s = {
@@ -42,13 +35,18 @@ export function summarizeLog(text) {
 
 const n = (v) => v.toLocaleString('en-US');
 
-export function formatStatus({ active, tasks, summary }) {
+// `expanded` is the number of tasks whose file exists, given only for a split plan.
+export function formatStatus({ active, tasks, summary, expanded = null }) {
   const out = [];
   if (!active) out.push('No active run.');
   else {
     let line = `Active run: ${active.slug} · lane ${active.lane} · stage ${active.stage}`;
+    if (active.slice && Number.isInteger(active.slice.n) && Number.isInteger(active.slice.total)) {
+      line += ` · slice ${active.slice.n}/${active.slice.total}`;
+    }
     if (active.lane === 'FULL') {
       line += tasks ? ` · task ${tasks.filter((t) => t.marker === 'x').length}/${tasks.length}` : ' · task ?/?';
+      if (tasks && expanded !== null) line += ` (${expanded} expanded)`;
     }
     out.push(line);
   }
@@ -77,12 +75,16 @@ function main() {
   if (markerText !== null) { try { active = JSON.parse(markerText); } catch { active = null; } }
   if (active === null || typeof active !== 'object' || Array.isArray(active)) active = null;
   let tasks = null;
+  let expanded = null;
   if (active && typeof active.plan === 'string') {
-    const planText = readText(resolve(cwd, active.plan));
-    if (planText !== null) tasks = parsePlanTasks(planText);
+    try {
+      const plan = loadPlan(resolve(cwd, active.plan));
+      tasks = plan.tasks.map(({ id, title, marker }) => ({ id, title, marker }));
+      if (plan.layout === 'split') expanded = plan.tasks.filter((t) => t.expanded).length;
+    } catch { tasks = null; }
   }
   const summary = summarizeLog(readText(resolve(cwd, paths.log)) ?? '');
-  process.stdout.write(formatStatus({ active, tasks, summary }));
+  process.stdout.write(formatStatus({ active, tasks, summary, expanded }));
   return 0;
 }
 

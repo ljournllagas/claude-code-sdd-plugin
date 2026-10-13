@@ -103,3 +103,38 @@ test('CLI with no files prints the empty report; with an invalid config exits 1'
   assert.equal(bad.status, 1);
   assert.ok(bad.stderr.includes('limits.reviewRounds'));
 });
+
+// ---------- v0.3: split plans ----------
+const SPLIT_MANIFEST = [
+  '---', 'type: plan', 'title: Split', 'status: executing', 'layout: split', '---', '', '**Task count:** 3', '',
+  '## Slices', '', '- Slice 1 — Core', '- Slice 2 — Docs', '',
+  '## Task index', '',
+  '- T1 — One · slice 1 · ACs: AC-1 · deps: none · files: `a`', '  summary: One.',
+  '- T2 — Two · slice 1 · ACs: AC-2 · deps: T1 · files: `b`', '  summary: Two.',
+  '- T3 — Three · slice 2 · ACs: AC-3 · deps: T2 · files: `c`', '  summary: Three.', '',
+].join('\n');
+
+test('formatStatus: slice position and expanded count appear for a split plan; legacy output is unchanged', () => {
+  const tasks = [{ id: 'T1', title: 'a', marker: 'x' }, { id: 'T2', title: 'b', marker: ' ' }, { id: 'T3', title: 'c', marker: ' ' }];
+  const out = S.formatStatus({
+    active: { slug: 's', lane: 'FULL', stage: 'plan-draft', slice: { n: 2, total: 3 } }, tasks, expanded: 2, summary: S.summarizeLog(''),
+  });
+  assert.ok(out.includes('Active run: s · lane FULL · stage plan-draft · slice 2/3 · task 1/3 (2 expanded)'), out);
+  const legacy = S.formatStatus({ active: { slug: 's', lane: 'FULL', stage: 'executing' }, tasks, summary: S.summarizeLog('') });
+  assert.ok(legacy.includes('stage executing · task 1/3\n'), legacy);
+  assert.ok(!legacy.includes('slice') && !legacy.includes('expanded'));
+});
+
+test('CLI reads a split plan: markers come from task files, unexpanded tasks are counted', () => {
+  const d = mkdtempSync(join(tmpdir(), 'sdd status '));
+  mkdirSync(join(d, '.sdd'));
+  const plans = join(d, 'docs', 'sdd', 'plans');
+  mkdirSync(join(plans, 'p'), { recursive: true });
+  writeFileSync(join(plans, 'p.md'), SPLIT_MANIFEST);
+  writeFileSync(join(plans, 'p', 'T1.md'), '### T1 — One   [x] done\nVerify: x\n');
+  writeFileSync(join(plans, 'p', 'T2.md'), '### T2 — Two   [ ] pending\nVerify: x\n');
+  writeFileSync(join(d, '.sdd', 'active.json'), JSON.stringify({ slug: 'p', lane: 'FULL', stage: 'executing', plan: 'docs/sdd/plans/p.md', slice: { n: 1, total: 2 }, updated: new Date().toISOString() }));
+  const r = spawnSync(process.execPath, [STATUS], { cwd: d, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.stdout.includes('Active run: p · lane FULL · stage executing · slice 1/2 · task 1/3 (2 expanded)'), r.stdout);
+});

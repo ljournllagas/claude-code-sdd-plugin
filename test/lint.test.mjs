@@ -264,7 +264,7 @@ test('AC-2: no toolchain names in agents, commands, playbook, templates, bin or 
 });
 
 test('AC-3: scripts import only Node built-ins (sibling Kit modules where documented)', () => {
-  const allowedRelative = { 'bin/status.mjs': ['./route.mjs'], 'bin/index.mjs': ['./route.mjs'], 'bin/plan.mjs': ['./route.mjs', './index.mjs'] };
+  const allowedRelative = { 'bin/status.mjs': ['./route.mjs', './plan.mjs'], 'bin/index.mjs': ['./route.mjs'], 'bin/plan.mjs': ['./route.mjs', './index.mjs'] };
   for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'hooks/guard.mjs']) {
     const text = read(f);
     assert.ok(!/\brequire\s*\(/.test(text), `${f} uses require`);
