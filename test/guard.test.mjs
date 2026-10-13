@@ -194,3 +194,11 @@ test('hooks.json registers the guard for Edit|Write|NotebookEdit with a quoted p
   assert.equal(entry.hooks[0].type, 'command');
   assert.match(entry.hooks[0].command, /^node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/guard\.mjs"$/);
 });
+
+test('main session: the manifest and task files of a split plan are run artifacts; look-alikes are denied', () => {
+  const d = proj();
+  for (const t of ['docs/sdd/plans/p.md', 'docs/sdd/plans/p/T1.md', 'docs/sdd/plans/p/T12.md']) {
+    assert.equal(ev(call(d, join(d, t))).deny, false, t);
+  }
+  assert.equal(ev(call(d, join(d, 'docs', 'sdd', 'plans-old', 'p', 'T1.md'))).deny, true);
+});

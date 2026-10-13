@@ -246,3 +246,14 @@ test('CLI: runs from the project root (path with a space), prints the summary, e
   assert.equal(r.status, 0);
   assert.equal(r.stdout, 'indexed 1 specs, 0 plans, 0 unindexed\n');
 });
+
+test('run: a split plan is listed by its manifest; the task folder beside it is not scanned', () => {
+  const d = mkProj();
+  put(d, 'docs/sdd/plans/p.md', fm({ type: 'plan', title: 'Split', layout: 'split' }));
+  put(d, 'docs/sdd/plans/p/T1.md', '### T1 — One   [ ] pending\n');
+  const r = I.run(d);
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(r.stdout, 'indexed 0 specs, 1 plans, 0 unindexed\n');
+  assert.ok(idx(d).includes('- [Split](plans/p.md) — draft — D'), idx(d));
+  assert.ok(!idx(d).includes('T1'));
+});

@@ -375,3 +375,10 @@ test('v0.3 playbook: outline, expansion, slices, scopes, resume and the plan-che
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
 });
+
+test('v0.3 dry-run scenarios cover cutoff resume, the size gate and a legacy plan', () => {
+  const t = read('test/fixtures/dry-run-scenarios.md');
+  for (const h of ['Scenario 10 — Cutoff during task expansion', 'Scenario 11 — Size gate and slices', 'Scenario 12 — Legacy single-file plan']) {
+    assert.ok(t.includes(`## ${h}`), h);
+  }
+});

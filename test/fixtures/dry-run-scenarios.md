@@ -73,6 +73,32 @@ Put a spec written by an earlier Kit (a `**Status:**` line, no frontmatter) in `
 - [ ] Add a `---` frontmatter block (`type`, `title`, `status`) by hand and re-run the Index script (`node <kit>/bin/index.mjs`): it moves into Specs.
 - [ ] Replace the Index with a hand-written file lacking the generated marker: the script refuses to overwrite it, prints one line, and exits 1; the run continues with a one-line warning.
 
+## Scenario 10 — Cutoff during task expansion (v0.3)
+
+Set `limits.expandBatchTasks` to 2 in `sdd.config.json`. Run `/sdd` with a FULL request that yields at least five tasks (repo-js: a small module with a CLI wrapper, a formatter and a report command).
+- [ ] After the spec is approved the planner is dispatched with `MODE: OUTLINE` and writes only `docs/sdd/plans/<slug>.md` (no `<slug>/` task folder yet); `plan.mjs check <manifest> --outline` prints `ok`.
+- [ ] Each following planner dispatch is `MODE: EXPAND` with at most two task IDs; `docs/sdd/plans/<slug>/T1.md`, `T2.md` appear one by one.
+- [ ] Close the session after `T1.md` and `T2.md` exist and before `T3.md`. Reopen Claude Code in the project and run `/sdd`: the marker `stage` is `plan-draft`, the team-lead offers to resume.
+- [ ] On resume no planner dispatch names `T1` or `T2`, and the manifest is not rewritten (its modification time is unchanged); the next EXPAND names `T3` (and `T4`).
+- [ ] `/sdd-status` shows `slice 1/1 · task 0/<n> (<k> expanded)` with `<k>` counting the files that exist.
+
+## Scenario 11 — Size gate and slices (v0.3)
+
+Set `limits.sliceMaxTasks` to 2 and `limits.expandBatchTasks` to 1. Run `/sdd` with a FULL request that yields four or five tasks.
+- [ ] The outline lists at least two slices, each with at most two tasks, dependencies only on the same or earlier slices; the session stops at `outline-approval` and shows the slices (title, task count, ACs). Saying nothing does not advance it.
+- [ ] After you approve: plan `status:` is `approved`; marker has `slice: {n: 1, total: <k>}` and `approved_slices: []`; only slice 1's task files exist.
+- [ ] Slice 1 is reviewed with a reviewer prompt carrying `Scope: slice 1`, then the session stops at `plan-approval`; approving records `1` in `approved_slices`.
+- [ ] Only slice 1's tasks execute (each with a fresh developer given `Task file: <path>`), each `[x] done` in its own task file, one commit per task.
+- [ ] The team-lead then moves to slice 2: `stage` returns to `plan-draft`, slice 2's task files are expanded, reviewed and approved separately; no slice 2 task runs before that approval.
+- [ ] The single final `code` review runs after the last slice; plan `status: done`; marker deleted.
+
+## Scenario 12 — Legacy single-file plan (v0.3)
+
+In a project, put a plan written by v0.2 (frontmatter without `layout`, all tasks in one file, some marked `[x] done`) at `docs/sdd/plans/<slug>.md` and a marker `.sdd/active.json` with `stage: "executing"`, no `slice`, `plan` pointing at it.
+- [ ] `/sdd` offers to resume and continues at the next pending task exactly as v0.2 did: no outline stage, no `MODE:` line in any planner dispatch, developer prompts carry `Plan:` and `Task:`.
+- [ ] `/sdd-status` prints `task <done>/<total>` with no `slice` and no `expanded` text.
+- [ ] `node <kit>/bin/plan.mjs check docs/sdd/plans/<slug>.md --plan` prints `ok` (or the Task count / Verify defects, never a layout error).
+
 ## Results
 
 Date: ____  Claude Code version: ____  Kit commit: ____
