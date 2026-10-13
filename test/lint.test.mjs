@@ -84,7 +84,7 @@ function frontmatter(rel) {
 }
 
 const AGENT_TOOLS = {
-  analyst: 'Read, Glob, Grep, Write, Bash',
+  analyst: 'Read, Glob, Grep, Write, Edit, Bash',
   planner: 'Read, Glob, Grep, Write, Edit',
   developer: 'Read, Glob, Grep, Edit, Write, Bash',
   reviewer: 'Read, Glob, Grep',
@@ -116,6 +116,12 @@ test('agents never edit outside their remit (instruction text present)', () => {
   assert.match(read('agents/analyst.md'), /never write (or edit )?code/i);
   assert.match(read('agents/developer.md'), /outside the task's Files list/i);
   assert.match(read('agents/reviewer.md'), /never modify/i);
+});
+
+test('analyst revisions go through Edit, never a whole-file Write', () => {
+  const t = read('agents/analyst.md');
+  assert.match(t, /each change with `Edit` on the spec file/);
+  assert.match(t, /never rewrite the whole file with `Write`/);
 });
 
 // ---------- commands ----------
