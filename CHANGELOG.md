@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.3 (2026-10-14)
+
+### Fixed
+- Applied residual audit fixes from independent re-audit: planner duplicates, reviewer token preservation.
+- Kept all tests passing after agent-prompt cleanup.
+
 ## 0.5.2 (2026-10-14)
 
 ### Fixed
