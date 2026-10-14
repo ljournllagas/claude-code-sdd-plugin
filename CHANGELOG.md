@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2 (2026-10-14)
+
+### Fixed
+- Reviewer calibration wording no longer duplicated by output format (single cap/tier rule).
+- Planner rules 3 and 8 merged for size; reduced cross-mode references.
+- Scope/citation/reuse guidance kept punchy and mode-independent.
+
 ## 0.5.1 (2026-10-14)
 
 ### Changed
