@@ -64,7 +64,7 @@
         "reviewRounds": { "$ref": "#/definitions/posInt" }, "verifyFailuresPerTier": { "$ref": "#/definitions/posInt" },
         "reviewFixRounds": { "$ref": "#/definitions/posInt" }, "openQuestions": { "$ref": "#/definitions/posInt" },
         "questionRounds": { "$ref": "#/definitions/posInt" },
-        "sliceMaxTasks": { "$ref": "#/definitions/posInt" }, "expandBatchTasks": { "$ref": "#/definitions/posInt" }
+        "sliceMaxTasks": { "$ref": "#/definitions/posInt" }, "expandBatchTasks": { "$ref": "#/definitions/posInt" }, "maxAcceptanceCriteria": { "$ref": "#/definitions/posInt" }
       }
     },
     "guard": { "type": "object", "properties": { "ttlHours": { "type": "number", "exclusiveMinimum": 0 } } }
