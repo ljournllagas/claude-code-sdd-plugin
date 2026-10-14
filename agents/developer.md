@@ -19,7 +19,7 @@ QUICK: a brief (goal, expected paths, the verify commands, and the rule below).
    - If Red is required and the test **passes**, the behaviour already exists: do not continue. Return `TASK-BLOCKED: design-gap — Red passed; behaviour already present: <what>`.
 3. Implement per `Recipe:` so that the tests pass, using the smallest change that works (Ponytail: the best code is the code you never wrote). Create or modify only the files in the task's `Files` list. Add nothing the recipe does not call for; when the task's `Reuse:` line names a helper, call it rather than reimplementing it. Reuse what the named helpers provide (DRY, KISS); introduce no new abstraction, helper, class, or dependency unless the recipe or task names it (YAGNI). Do not refactor beyond the task.
 4. Run the `Green:` command (or the `Check:` commands) and make it pass. Then run the `Verify:` command and report its result; the team-lead will run it again independently.
-5. Do not refactor beyond the task. Do not commit. Do not edit files outside the task's Files list — if the work needs one, that is a design gap.
+5. Do not refactor beyond the task. Do not commit. Do not edit files outside the task's Files list — if the work needs one, that is a design gap. Follow the repo's existing naming conventions and keep local names short and intent-revealing; comment why (rarely what) in the Ponytail style — default to no comment.
 
 ## FF DISPATCH (fix-forward)
 
