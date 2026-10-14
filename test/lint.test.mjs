@@ -243,13 +243,13 @@ const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
-  'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status.mjs',
+  'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status.mjs', 'bin/verify-waiver.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json', 'templates/task.md',
-  'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status.test.mjs',
+  'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status.test.mjs', 'test/verify-waiver.test.mjs',
   'test/helpers/typesafe-mock.mjs',
 ];
 

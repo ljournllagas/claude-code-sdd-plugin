@@ -155,7 +155,7 @@ const specAcIds = (text) => [...new Set([...String(text).matchAll(/\*\*(AC-\d+[a
 
 // Mechanical checks. scope: 'outline' (manifest only), 'slice' (outline plus that slice's task files), 'plan' (everything).
 // Returns one defect string per problem, `<T-id or manifest>: <problem>`, in a stable order.
-export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sliceMax = 12 } = {}) {
+export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sliceMax = 12, taskFileLineLimit = 600 } = {}) {
   const defects = [];
   const add = (who, msg) => defects.push(`${who}: ${msg}`);
   const m = plan.manifest;
@@ -238,6 +238,11 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
     if (!sameSet(p.files, e.files)) add(t.id, 'Files differ from the index');
     if ((p.routerSummary ?? '') !== (e.summary ?? '')) add(t.id, 'Router summary differs from the index summary');
     if (!p.hasVerify) add(t.id, 'no Verify: line');
+    try {
+      const raw = readFileSync(t.file, 'utf8').split(/\r?\n/);
+      const n = raw.length > 1 && raw[raw.length - 1] === '' ? raw.length - 1 : raw.length;
+      if (n > taskFileLineLimit) add(t.id, `task file is ${n} lines (limit ${taskFileLineLimit})`);
+    } catch { /* expanded files are read above; missing files already reported */ }
   }
   for (const o of plan.orphans) add(o.slice(0, -3), 'task file is not in the index');
   return defects;
@@ -275,7 +280,7 @@ export function run(argv, cwd = process.cwd()) {
   if (flags.spec !== undefined) {
     try { specText = readFileSync(resolve(cwd, flags.spec), 'utf8'); } catch { err.push(`plan.mjs: cannot read spec ${flags.spec}`); return done(1); }
   }
-  const defects = checkPlan(plan, { scope: flags.scope ?? 'plan', slice: flags.slice ?? null, spec: specText, sliceMax: loaded.config.limits.sliceMaxTasks });
+  const defects = checkPlan(plan, { scope: flags.scope ?? 'plan', slice: flags.slice ?? null, spec: specText, sliceMax: loaded.config.limits.sliceMaxTasks, taskFileLineLimit: loaded.config.limits.maxTaskFileLines });
   if (defects.length === 0) { out.push('ok'); return done(0); }
   out.push(...defects);
   return done(1);

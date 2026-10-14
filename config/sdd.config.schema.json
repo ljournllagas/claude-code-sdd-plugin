@@ -51,7 +51,10 @@
       "properties": {
         "build": { "type": ["string", "null"] }, "test": { "type": ["string", "null"] },
         "lint": { "type": ["string", "null"] }, "typecheck": { "type": ["string", "null"] },
-        "format": { "type": ["string", "null"] }, "testOne": { "type": ["string", "null"] }
+        "format": { "type": ["string", "null"] }, "testOne": { "type": ["string", "null"] },
+        "external": { "type": "boolean" },
+        "waiverFile": { "type": ["string", "null"] },
+        "externalCommand": { "type": ["string", "null"] }
       }
     },
     "paths": {
@@ -64,7 +67,7 @@
         "reviewRounds": { "$ref": "#/definitions/posInt" }, "verifyFailuresPerTier": { "$ref": "#/definitions/posInt" },
         "reviewFixRounds": { "$ref": "#/definitions/posInt" }, "openQuestions": { "$ref": "#/definitions/posInt" },
         "questionRounds": { "$ref": "#/definitions/posInt" },
-        "sliceMaxTasks": { "$ref": "#/definitions/posInt" }, "expandBatchTasks": { "$ref": "#/definitions/posInt" }, "maxAcceptanceCriteria": { "$ref": "#/definitions/posInt" }
+        "sliceMaxTasks": { "$ref": "#/definitions/posInt" }, "expandBatchTasks": { "$ref": "#/definitions/posInt" }, "maxAcceptanceCriteria": { "$ref": "#/definitions/posInt" }, "maxTaskFileLines": { "$ref": "#/definitions/posInt" }
       }
     },
     "guard": { "type": "object", "properties": { "ttlHours": { "type": "number", "exclusiveMinimum": 0 } } }
