@@ -242,6 +242,7 @@ function walk(dir, base = dir) {
 const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
+  'CHANGELOG.md',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
   'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status.mjs', 'bin/verify-waiver.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
@@ -257,7 +258,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.4.0');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.5.0');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
