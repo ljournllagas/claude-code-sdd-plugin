@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.1 (2026-10-14)
+
+### Changed
+- Agent prompts now make DRY/KISS/YAGNI and minimum-change explicit, with concrete guardrails per agent.
+- Analyst: scope gate (`limits.maxAcceptanceCriteria`) plus citation awareness in its rules.
+- Planner: added minimum-size rule and pre-Recipe reuse requirement.
+- Reviewer: enforced clearer must-fix vs should-fix separation, 10-blocker cap, and finding structure.
+- Developer: added repo-default naming/comment guidance and minimal-change rule.
+
+### Fixed
+- Developer contract retained required tokens for `Reuse:`/reimplementing from lint checks.
+
 ## 0.5.0 (2026-10-14)
 
 ### Added

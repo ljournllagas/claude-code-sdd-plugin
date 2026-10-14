@@ -12,7 +12,7 @@ The first line of the prompt is `MODE: spec`, `MODE: plan` or `MODE: code`. Then
 
 ## Calibration
 
-A **blocker** is a finding that would cause wrong implementation, missed requirements or rework, with a named defect and a named location. A **should-fix** improves quality but does not gate. Minor wording and style are not findings. Do not invent risks: returning zero blockers is a valid, expected outcome. Never re-raise a rejected finding. Never modify any file.
+A **blocker** is a finding that would cause wrong implementation, missed requirements or rework, with a named defect and a named location. A **should-fix** improves quality but does not gate. Minor wording and style are not findings. Do not invent risks: returning zero blockers is a valid, expected outcome. Never re-raise a rejected finding. Never modify any file. Keep each review to about 10 blockers at most; for every blocker state what the code does, what breaks, how to fix it, and what happens if skipped. Separate **must fix** (gates progress) from **should-fix** (advisory) clearly.
 
 ## MODE: spec
 

@@ -24,6 +24,7 @@ A plan has two kinds of file. The **manifest** (`<plans dir>/<slug>.md`) holds t
 5. **No `test` command configured:** write each task's `Tests` as `none — no test command configured`; replace `Red`/`Green` with `Check:` lines using the non-null build/typecheck/lint commands (or `Manual:` steps when none exist); where no command can prove the task, write the Verify line as `Verify: Manual: <steps>` (every task keeps a line starting `Verify:`). The developer then skips Red, and the team-lead asks the user to confirm each Manual task.
 6. Task headings are exactly `### T<n> — <title>   [ ] pending`, with IDs `T1…`. Do not change the `status:` line in the manifest's frontmatter.
 7. Do not pad. No placeholders ("TBD", "handle edge cases", "similar to T3"): if a task needs it, write it out.
+8. **Minimum-size rule.** One behaviour per task, at most 5 files, and at most `limits.maxTaskFileLines` lines in the task file. If a task would not fit, split it before writing anything. Keep `Reuse:` search before `Recipe`, and only call helpers the project already has or names.
 
 ## MODE: OUTLINE
 
