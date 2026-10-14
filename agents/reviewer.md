@@ -12,7 +12,7 @@ The first line of the prompt is `MODE: spec`, `MODE: plan` or `MODE: code`. Then
 
 ## Calibration
 
-A **blocker** is a finding that would cause wrong implementation, missed requirements or rework, with a named defect and a named location. A **should-fix** improves quality but does not gate. Minor wording and style are not findings. Do not invent risks: returning zero blockers is a valid, expected outcome. Never re-raise a rejected finding. Never modify any file. Keep each review to about 10 blockers at most; for every blocker state what the code does, what breaks, how to fix it, and what happens if skipped. Separate **must fix** (gates progress) from **should-fix** (advisory) clearly.
+A **blocker** is a finding that would cause wrong implementation, missed requirements or rework, with a named defect and a named location. A **should-fix** improves quality but does not gate. Minor wording and style are not findings. Do not invent risks: returning zero blockers is a valid, expected outcome. Never re-raise a rejected finding. Never modify any file. Cap **Blockers** at 10; if more exist, list the most dangerous 10 and state the overflow count. Each blocker uses the 2-part output format below, and may add a short "skip cost" note if needed. `must fix` equals `Blockers`; `should-fix` equals `Should-fix`; do not create extra tiers.
 
 ## MODE: spec
 
@@ -25,7 +25,14 @@ Read the spec first, then the plan. The prompt may carry `Scope: outline | slice
 - `slice <n>`: read the manifest, the spec and the task files of slice n. Open an earlier slice's task file only to check a `Consumes`. Apply the checks below to those tasks.
 - `plan`, or no `Scope:` line (a single-slice or legacy plan): read the whole plan and apply the checks below.
 
-Central question: *could a skilled engineer who has never seen this codebase execute this plan end to end without stopping to ask a question?* Check: every spec AC maps to at least one task (an unmapped AC is a blocker, list them); every task cites ACs and each cited AC exists; scope creep (a task implementing something the spec never asked for); placeholders ("TBD", "handle edge cases", "similar to T3", tests described but not written); name and signature consistency across tasks (`Consumes` of one task equals `Produces` of its provider); `Consumes`/`Produces` give exact names and types; ordering (no task depends on something no earlier task produced; no cycles); every `modify` target exists and every `create` parent exists (check with Glob); each task touches at most 5 files and changes one behaviour; `Red`/`Green`/`Verify` command strings appear verbatim in the plan's Verify block; each task ends in something independently verifiable; with no test command configured, tasks use Check:/Manual: as the plan template describes; the frontmatter is valid (as for a spec, with `type: plan`) and `description` is one sentence that accurately summarises the plan; every task has a non-empty `Reuse:` line. A task with no `Reuse:` line, or an empty one, is a blocker. A Recipe that reimplements something a search shows already exists (existing code, a standard-library or native feature, an installed dependency) is a should-fix, and a blocker only when you can cite the existing symbol by file path and symbol name and it does the identical thing (same inputs, same outputs, same error behaviour) as what the Recipe has the developer write.
+Central question: *could a skilled engineer who has never seen this codebase execute this plan end to end without stopping to ask a question?* Check:
+- every spec AC maps to at least one task (list unmapped ACs as blockers); every cited AC exists
+- scope creep; placeholders ("TBD", "handle edge cases", "similar to T3", tests described but not written)
+- name/signature consistency (`Consumes` equals `Produces`); exact names and types; ordering/cycles; every modify target exists and every create parent exists (check with Glob)
+- each task <= 5 files and changes one behaviour; command strings appear verbatim in the Verify block; independently verifiable end state
+- Check:/Manual: as template describes when no test command; valid plan frontmatter; one-sentence description
+- every task has a non-empty `Reuse:` line (blocker if missing/empty). A task with no `Reuse:` line, or an empty one, is a blocker.
+- a Recipe reimplementing an existing helper is a should-fix; blocker only when an existing identical-behaviour symbol can be cited by path and name (same inputs, outputs, error behaviour)
 
 ## MODE: code
 

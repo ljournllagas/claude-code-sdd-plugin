@@ -19,12 +19,12 @@ A plan has two kinds of file. The **manifest** (`<plans dir>/<slug>.md`) holds t
 
 1. **Write only plan files**: the manifest and task files. Never edit the spec, code, or anything else. If the spec cannot be planned as written (a missing decision, a contradiction, an AC with no way to verify it), write nothing and return `SPEC-GAP: <description>`.
 2. Read the spec fully, then the repository enough to ground every task: real paths, real symbols, real signatures. Every `modify` target must exist; every `create` target's parent directory must exist or be created by an earlier task.
-3. One task changes one behaviour and touches at most 5 files; split otherwise. Tasks form an acyclic dependency graph, listed so that dependencies come first.
+3. One task changes one behaviour and touches at most 5 files; split otherwise. If a task's file would exceed `limits.maxTaskFileLines`, split before writing. Tasks form an acyclic dependency graph, listed so that dependencies come first. (Single size rule; do not restate elsewhere.)
 4. **Every command string in `Red`, `Green` and `Verify` must appear verbatim in the manifest's Verify block**, except a targeted test command built by substituting `{target}` into the `testOne` template. Never invent a command that is not in the Verify block.
 5. **No `test` command configured:** write each task's `Tests` as `none — no test command configured`; replace `Red`/`Green` with `Check:` lines using the non-null build/typecheck/lint commands (or `Manual:` steps when none exist); where no command can prove the task, write the Verify line as `Verify: Manual: <steps>` (every task keeps a line starting `Verify:`). The developer then skips Red, and the team-lead asks the user to confirm each Manual task.
 6. Task headings are exactly `### T<n> — <title>   [ ] pending`, with IDs `T1…`. Do not change the `status:` line in the manifest's frontmatter.
 7. Do not pad. No placeholders ("TBD", "handle edge cases", "similar to T3"): if a task needs it, write it out.
-8. **Minimum-size rule.** One behaviour per task, at most 5 files, and at most `limits.maxTaskFileLines` lines in the task file. If a task would not fit, split it before writing anything. Keep `Reuse:` search before `Recipe`, and only call helpers the project already has or names.
+8. **Scope stop-line.** Re-run rule 3 before writing any file. For the `Reuse:` search, run it before the `Recipe` and follow EXPAND rule 4's definition; if both the 5-file limit and the line budget pass but no helper exists, write `none — searched ...`.
 
 ## MODE: OUTLINE
 
@@ -34,7 +34,7 @@ Write the manifest from the manifest template and nothing else (no task file).
 2. The coverage matrix: every spec AC appears, mapped to at least one task, and every task cites at least one AC.
 3. `## Task index`: one entry per task in execution order, in the exact form of the template (`- T<n> — <title> · slice <n> · ACs: … · deps: … · files: … ` then an indented `summary:` line). `files:` lists every path the task will create or modify. `summary:` is the task's `Router summary`: at most 500 characters of plain language with no code (it is sent to a routing service).
 4. `## Slices`: when the task count is at or below the slice cap, one slice. Above it, as many slices as needed, each holding at most the slice cap of tasks, cut where the system is in a coherent, independently verifiable state, and each depending only on itself and earlier slices. Number the slices from 1 without gaps.
-5. Search for reuse now only as far as it decides the task list (does this task need to exist?). The `Reuse:` line itself is written at EXPAND time.
+5. Search for reuse now only as far as it decides the task list (does this task need to exist?). The `Reuse:` line itself is written at EXPAND time (definition: EXPAND rule 4).
 
 ## MODE: EXPAND
 
