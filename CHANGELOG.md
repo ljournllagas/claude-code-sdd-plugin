@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1 (2026-10-15)
+
+Fixes from the developer-agent audit.
+
+### Fixed
+- `verify.mjs`: the developer's runner (`--cmd` without `--key`) no longer applies the `verify.external` gate. With `verify.external: true`, every developer command used to report `fail`, so no task could finish; with `verify.externalCommand` set, that command ran on every developer command.
+- Dispatch templates quote the runner's command with single quotes, as the developer prompt does.
+
+### Changed
+- Developer: Red that fails for another reason stops the task (except a missing file or export the task creates); `TASK-DONE` only when every command it ran passed; at most 3 rounds ending in the same failure, and a fail-then-pass with no change is reported as flaky; no installer, generator or auto-fix that writes outside the Files list; a `git status` check against the Files list before returning; a missing or unfit `Reuse:` helper is a design gap; no reformatting of untouched lines.
+- Developer return: the Red line carries its command and the failing line; a `Check:` slot and a `Notes:` line; a `TASK-BLOCKED` return also lists the files changed and created, with its evidence.
+
 ## 0.6.0 (2026-10-15)
 
 Token savings and the fixes from the agent audit.

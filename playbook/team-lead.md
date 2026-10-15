@@ -120,7 +120,7 @@ Task file: <path to the task's T<n>.md>      (split plan)
 Task: <T-id>]                             (legacy single-file plan, instead of the Task file line)
 Verify block:
 - <key>: `<command>`
-Runner: node "<kit>/bin/verify.mjs" --cmd "<command>"
+Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
 [FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <.sdd/review/<slug>-<task>.fail.txt>. The Red check is waived. Fix forward; never restore or delete files you did not create in this attempt.]
 [User guidance: <text>]
 ```
@@ -131,7 +131,7 @@ QUICK brief.
 Goal: <request restated>
 Expected paths: <paths, best effort>
 Verify set (run in order, stop at the first failure): <commands>
-Runner: node "<kit>/bin/verify.mjs" --cmd "<command>"
+Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
 Tests: <"add or update tests; the test command is <cmd>" | "no test command is configured">
 If the brief does not settle a decision, return TASK-BLOCKED.
 [FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <path>. Fix forward; never restore or delete files you did not create in this attempt.]

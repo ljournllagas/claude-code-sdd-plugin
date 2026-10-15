@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.0');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.1');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -465,4 +465,18 @@ test('v0.6 playbook: the scripts carry the bookkeeping and every prompt carries 
 
 test('v0.6 config: the final code review never routes below standard', () => {
   assert.equal(JSON.parse(read('config/sdd.config.default.json')).stageFloors['reviewer-code'], 'standard');
+});
+
+// ---------- v0.6.1: developer audit fixes ----------
+test('v0.6.1 developer: Red evidence, green-only TASK-DONE, bounded re-runs, scope self-check, files on a block', () => {
+  const t = read('agents/developer.md');
+  const tokens = [
+    'fails for **another reason**', 'Return `TASK-DONE` only when every command you ran passed', 'stop after 3 rounds', 'flaky, not passing', 'Notes:',
+    'Commands write files too', 'Before you return', 'a `Reuse:` helper that is missing or does not fit', 'no reformatting or reordering',
+    'failed: <the line showing the stated reason>', 'Evidence:', 'naming, style and idiom',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  const blocked = t.slice(t.indexOf('TASK-BLOCKED: <class> — <reason>\nFiles changed:'));
+  assert.ok(blocked.includes('Files created:'), 'a TASK-BLOCKED return lists the files it touched');
+  assert.ok(playbook().includes(`Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'`), 'the dispatch quotes the command as the developer prompt does');
 });
