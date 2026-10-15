@@ -4,7 +4,7 @@ Part of the team-lead playbook (`team-lead.md` holds §0–§2, §11 and §12 an
 
 ## 9. Amendments after approval
 
-Applies to: a design-gap `TASK-BLOCKED`, review fix tasks, and a spec gap found by the planner (`SPEC-GAP`).
+Applies to: a design-gap `TASK-BLOCKED`, review fix tasks, and a spec gap found by the planner (`SPEC-GAP`, after the user's **Decide** at §10 "Spec gap": the analyst's dispatch carries the finding and the user's decision verbatim).
 
 1. **Amendment:** write (with `marker.mjs set`) `amendment: {artifact: "spec"|"plan", blocks: <task IDs or sections to change>, return_stage: "executing"|"review-fix"|"outline-draft"|"plan-draft"}` to the marker (`review-fix` for fix tasks; for a `SPEC-GAP` or `OUTLINE-GAP` raised while a plan is first being written, `outline-draft` when it came from the outline (§6 steps 1-3) and `plan-draft` when it came from expanding a slice (§6 step 4), with step 4 of this section skipped (the plan is not yet approved, so there is nothing to set back to `draft`) and §6 resuming at that step; when the planner appends fix tasks, set `blocks` to their IDs once it returns) and set `stage` to `plan-draft` (`spec-draft` for a spec change). Then the authoring agent writes the change (planner for plan content, analyst for the spec), routed, with the finding and the artifact path. You never edit the content yourself.
 2. The reviewer checks **only the amended blocks** under the §5 loop rules as a **new loop** (fresh round cap and stall comparison, the artifact's full rejected list): the reviewer prompt carries `Review only these blocks: <blocks>`. While it runs, `stage` is `plan-review` (`spec-review` for a spec change).

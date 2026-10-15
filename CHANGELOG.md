@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.12 (2026-10-15)
+
+### Added
+- §10 **Spec gap**: a planner `SPEC-GAP` stops with the finding verbatim and two options, Decide (the user's answer goes to the analyst as the spec amendment, §9) or Abort. In two runs the team-lead had asked the user with its own options and recorded neither a stop nor an amendment in the marker.
+- `test/fixtures/ff-escalation/`: an approved spec, a one-task split plan and an export snapshot test, so dry-run Scenario 5 starts at `executing` and its failure first shows at the team-lead's Verify.
+
 ## 0.6.11 (2026-10-15)
 
 ### Changed

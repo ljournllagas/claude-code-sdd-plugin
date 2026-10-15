@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as P from '../bin/plan.mjs';
 
@@ -412,4 +412,10 @@ test('the CLI checks Files targets only with --paths', () => {
   assert.match(paths.stdout, /T1: modify target src\/a\.js does not exist/);
   const bad = spawnSync(process.execPath, [PLAN_CLI, 'tasks', p.rel, '--paths'], { cwd: p.dir, encoding: 'utf8' });
   assert.equal(bad.status, 2);
+});
+
+test('the Scenario 5 fixture plan passes plan.mjs check', () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'ff-escalation');
+  const spec = readFileSync(join(root, 'docs', 'sdd', 'specs', 'demo-shout.md'), 'utf8');
+  assert.deepEqual(P.checkPlan(P.loadPlan(join(root, 'docs', 'sdd', 'plans', 'demo-shout.md')), { spec }), []);
 });

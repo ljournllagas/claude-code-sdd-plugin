@@ -17,6 +17,10 @@ At every stop: show the stop reason and the options below — only these — and
 - **Direct** → one more fix round with the user's guidance (§8 step 3) and no further review; then finish (§11, which sets the plan's `status:` to `done`).
 - **Abort** → leave the working state as it is and report (§11 step 4).
 
+**Spec gap** (the planner returned `SPEC-GAP: …`; the spec is the user's, so the decision is too). Show the `SPEC-GAP` line verbatim and, at most, one line on what you checked.
+- **Decide** → the user's answer, verbatim, goes with the finding to the analyst as a spec amendment (§9).
+- **Abort** → end the run (§11 step 4).
+
 **Task needs a human** (`human: true`). Show the task, the failure evidence file, and the attempts at each tier.
 - **I fixed it** → run the task's Verify; on success mark it done and continue (commit per §7.3 step 7, with `task-done.mjs --no-outcome`); on failure stop again. This verify writes no **Outcome line**, even in a session that carries out a recorded `I fixed it` after a cut (§7.3: a human fix is not a developer attempt).
 - **Retry at deep with guidance** → a new budget of N failures at `deep` (`marker.mjs set tasks.<key>.last_tier=deep tasks.<key>.failures_at_last_tier=0`), the user's guidance appended to the developer prompt; continue at §7.3 step 1, routing with `--retry <key> --record <key>`.

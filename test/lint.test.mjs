@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.11');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.12');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -628,4 +628,12 @@ test('v0.6.11: the suite health check runs right after lane confirmation, before
   assert.ok(lead.includes('**Suite health:** when `verify.test` is set, run it once'));
   assert.ok(!read('playbook/execution.md').includes('Suite health'), 'no second check before the first task');
   assert.ok(read('playbook/stops.md').includes('(§2 step 6: `verify.test` fails before any agent ran)'));
+});
+
+// ---------- v0.6.12: a planner SPEC-GAP is a recorded stop ----------
+test('v0.6.12: SPEC-GAP stops at §10 "Spec gap" with Decide / Abort before any amendment', () => {
+  const stops = read('playbook/stops.md');
+  assert.ok(stops.includes('**Spec gap** (the planner returned `SPEC-GAP: …`'));
+  assert.ok(stops.includes('- **Decide** → the user\'s answer, verbatim, goes with the finding to the analyst'));
+  assert.ok(read('playbook/full.md').includes('stop with §10 "Spec gap"; on **Decide**, handle it as a spec amendment (§9)'));
 });
