@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.13 (2026-10-15)
+
+### Changed
+- Team-lead: `red_proven` is set in the same `marker.mjs set` command as `in_progress=false` (§7.3 step 5), not in a separate step. In the Scenario 5 re-run the separate instruction was skipped after a `TASK-DONE` whose Red had failed as required.
+- Developer return: only the report block, as plain text, with no prose or code fence around it (a deep-tier developer had wrapped it).
+- Dry-run results for the 0.6.12 Scenario 5 run recorded.
+
 ## 0.6.12 (2026-10-15)
 
 ### Added

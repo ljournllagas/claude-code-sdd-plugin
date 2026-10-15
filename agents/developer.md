@@ -79,4 +79,4 @@ Rounds: <n>
 Notes: <diagnostic runs, flaky commands, paths undone outside the Files list, QUICK paths outside the expected paths, QUICK reuse, or none>
 ```
 
-Keep it short; the team-lead reads files, not prose.
+Return only that block, as plain text: no prose around it and no code fence. Keep it short; the team-lead reads files, not prose.

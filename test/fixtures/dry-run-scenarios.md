@@ -150,3 +150,8 @@ Run headless (`claude -p --plugin-dir`, approvals given as follow-up turns), rep
 - **Scenario 6 (QUICK half, 0.6.8):** pass. Marker `base: none`, `dirty_at_start: []`; no git command run; the reviewer got `.sdd/review/<slug>.files`. Deviation: the developer ran the whole `npm test`. FULL half not run.
 - **Scenario 1 (0.6.9):** pass. The developer ran only the narrowed tests and left `npm test` to the team-lead; no unbacked review claim. Still open: the developer's closing command was `git status` without `git diff` (third run in a row).
 
+### 2026-10-15 · Claude Code 2.1.300 · Kit 0.6.11 and 0.6.12, Scenario 5
+
+- **0.6.11, planted lint rule:** the suite check ran right after lane confirmation and passed; the planner read `scripts/lint.mjs` and returned `SPEC-GAP`. The team-lead asked the user with its own options and recorded neither a stop nor an amendment (led to the 0.6.12 "Spec gap" stop). A tiny repo cannot hide a trap from planning, which led to the `ff-escalation` fixture.
+- **0.6.12, `ff-escalation` fixture (resumed at `executing`):** first attempt at standard → `TASK-DONE` with Red proven → team-lead Verify failed on `api.test.js` → failure file → FF dispatch at deep, template-only, `source: "escalation"` → `TASK-BLOCKED: design-gap` (snapshot outside Files) → `[!] blocked`, outcome lines `fail` (first attempt) then `blocked`, stop **Leftover edits** recorded in the marker. The "Task needs a human" stop was not reached (design-gap path). Deviations: `red_proven` was not set after the first `TASK-DONE`; the deep developer wrapped its report in prose and a code fence.
+

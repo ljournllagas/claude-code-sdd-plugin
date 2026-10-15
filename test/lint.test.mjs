@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.12');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.13');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -575,10 +575,10 @@ test('v0.6.7 developer: Red proven or flagged, no-test runs fail, bounded diagno
     'run `Red:` once (not a round) before you change any implementation', 'not proven (FF: <why>)',
     'Red is waived only when the test code was already in place',
     'and that run is the result',
-    'paths undone outside the Files list, QUICK paths outside the expected paths, QUICK reuse, or none>\n```\n\nKeep it short',
+    'paths undone outside the Files list, QUICK paths outside the expected paths, QUICK reuse, or none>\n```\n\nReturn only that block',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
-  assert.ok(read('playbook/execution.md').includes('marker.mjs set tasks.<key>.red_proven=true'));
+  assert.ok(read('playbook/execution.md').includes('adding `tasks.<key>.red_proven=true` to the same command'));
   assert.ok(read('playbook/full.md').includes('`Red unproven:` with the IDs of the done tasks'));
   assert.ok(read('playbook/team-lead.md').includes('[Red unproven: <task IDs>]'));
   assert.ok(read('agents/reviewer.md').includes('A `Red unproven: <task IDs>` line names tasks'));
