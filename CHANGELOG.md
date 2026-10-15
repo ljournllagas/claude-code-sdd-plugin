@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.5 (2026-10-15)
+
+Fixes from the fifth developer-agent audit.
+
+### Changed
+- Developer: a **Manual task** (no `Red:`, `Green:` or `Check:` line, proved only by `Verify: Manual:`) has a defined path: Red is skipped and reported `skipped (Manual)`, Green as `none — Manual`. Planner and task template now agree: a Manual task has no `Check:` line (the planner used to allow `Manual:` steps in place of Red/Green).
+- Developer: reads `CONTEXT.md` when it exists and names domain concepts with its terms.
+- Developer: the stop rules are exact: 3 rounds *in a row* with the same failure; at most one diagnostic run per failure; the Red re-run after creating an empty shell is one run (not a round) that must then fail for the stated reason; a failing re-run after the pre-return cleanup is a round.
+- Developer: runs every command from the project root, where the team-lead verifies.
+- Developer: a `create` path that already exists (outside an FF dispatch) is a design gap; existing code that duplicates what a `Reuse: none` task builds is a design gap; the pre-return diff review confirms each `Reuse:` item is called.
+- Developer QUICK: adds only the tests the goal needs; changes no build, CI, tool configuration or lockfile unless the goal names it; runs no tests when the test command cannot be narrowed (the team-lead runs the suite); names every path outside the expected paths under `Notes:`.
+- Developer return: each command line reports that command's last run.
+
 ## 0.6.4 (2026-10-15)
 
 Fixes from the fourth developer-agent audit.

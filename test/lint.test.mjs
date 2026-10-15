@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.4');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.5');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -490,7 +490,7 @@ test('v0.6.2 developer: lane-wide minimum change, fixed tests, start snapshot, b
   const tokens = [
     'Do not special-case test inputs or hardcode expected values', 'or after 5 rounds in total', 'formatter or auto-fix (`--fix`, `--write`) unless the task names it',
     'Never change the task\'s test code after you wrote it', 'If the task\'s test code is not in its test files yet, write it as given first',
-    '**start snapshot**', 'Never touch a path outside the Files list that is in the start snapshot', 'Leave no trace', 'skipped (<Check | FF DISPATCH | QUICK>)',
+    '**start snapshot**', 'Never touch a path outside the Files list that is in the start snapshot', 'Leave no trace', 'skipped (<Check | Manual | FF DISPATCH | QUICK>)',
     'Manual — left to the user', 'paths undone outside the Files list',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
@@ -527,4 +527,24 @@ test('v0.6.4 developer: fresh pass after the last change, additive tests, QUICK 
   assert.ok(read('agents/planner.md').includes('For a test file the task modifies, give only the tests to add'), 'the planner says whether given tests add or replace');
   const quick = playbook().slice(playbook().indexOf('**developer — QUICK**'));
   assert.ok(quick.slice(0, quick.indexOf('### 12.3')).includes('[User guidance: <text>]'), 'the QUICK dispatch template carries User guidance');
+});
+
+// ---------- v0.6.5: developer audit fixes ----------
+test('v0.6.5 developer: Manual tasks, CONTEXT.md terms, exact stop rules, project root, QUICK scope', () => {
+  const t = read('agents/developer.md');
+  const tokens = [
+    '**Manual task**', 'a Manual task: none — Manual', 'read it first and name domain concepts with its terms',
+    'stop after 3 rounds in a row', 'at most once per failure', 'never `cd` away from it',
+    'run Red once more (not a round), which must now fail for the stated reason', 'if that run fails, fixing it is a round',
+    'A `create` path that already exists when you start is a design gap', 'confirm the diff calls each `Reuse:` item',
+    'existing code that duplicates what a `Reuse: none` task builds', 'when the tool cannot narrow, run none',
+    'outside the brief\'s expected paths under `Notes:`', 'Change no build, CI or tool configuration or lockfile unless the goal names it',
+    'Each command line reports that command\'s last run',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  for (const f of ['agents/planner.md', 'templates/task.md']) {
+    const s = read(f);
+    assert.ok(s.includes('write no `Check:` line'), `${f} defines a Manual task as one with no Check: line`);
+    assert.ok(!s.includes('or `Manual:` steps when none exist'), `${f} no longer puts Manual steps in place of Red/Green`);
+  }
 });
