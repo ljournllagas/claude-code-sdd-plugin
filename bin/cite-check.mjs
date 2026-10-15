@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// SDD cite-check: verifies that every file:line citation in a spec's
-// "## Background" section points at a file and line that exist. Read-only.
+// SDD cite-check: the spec's mechanical gate before review. Verifies the frontmatter block and that every
+// file:line citation in its "## Background" section points at a file and line that exist. Read-only.
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, relative, dirname, basename } from 'node:path';
+import { parseFrontmatter } from './index.mjs';
 
 const stripBom = (s) => (s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s);
 
@@ -73,6 +74,16 @@ export function checkCitations(text, root = process.cwd()) {
   return defects;
 }
 
+// The reviewer no longer checks the block by hand: it opens and closes with `---`, every line is `key: value`,
+// no key repeats, and type, title and status are present; type must be `spec`.
+export function checkSpecFrontmatter(text) {
+  const fm = parseFrontmatter(text);
+  if (!fm.fields) return [`spec: invalid frontmatter (${fm.reason})`];
+  if (fm.fields.type !== 'spec') return [`spec: frontmatter type is ${fm.fields.type}, not spec`];
+  if (!fm.fields.description) return ['spec: frontmatter has no description'];
+  return [];
+}
+
 export function run(argv, cwd = process.cwd()) {
   const out = [];
   const err = [];
@@ -82,7 +93,7 @@ export function run(argv, cwd = process.cwd()) {
   let text;
   try { text = readFileSync(resolve(cwd, specArg), 'utf8'); }
   catch (e) { err.push(`cite-check: cannot read ${specArg}`); return done(2); }
-  const defects = checkCitations(text, cwd);
+  const defects = [...checkSpecFrontmatter(text), ...checkCitations(text, cwd)];
   if (defects.length === 0) { out.push('ok'); return done(0); }
   out.push(...defects);
   return done(1);

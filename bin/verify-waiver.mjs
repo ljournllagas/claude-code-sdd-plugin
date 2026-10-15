@@ -2,37 +2,46 @@
 // SDD verify-waiver: out-of-band verification gate. When verify.external is true,
 // a run either has a recorded waiver file, or an external verification command
 // must succeed, before any verify set is treated as satisfied.
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve, basename } from 'node:path';
+import { existsSync } from 'node:fs';
+import { resolve, basename } from 'node:path';
 import { execSync } from 'node:child_process';
 import { loadConfig } from './route.mjs';
 
+// Where out-of-band verification stands, without running anything. verify.mjs and collect() both use it.
+//   { state: 'off' } | { state: 'waived', waiverFile } | { state: 'command', command } | { state: 'missing', waiverFile }
+export function externalState(verify, cwd = process.cwd()) {
+  const v = verify ?? {};
+  if (!v.external) return { state: 'off' };
+  const waiverFile = v.waiverFile || '.sdd/verify-waived.txt';
+  if (existsSync(resolve(cwd, waiverFile))) return { state: 'waived', waiverFile };
+  if (v.externalCommand) return { state: 'command', command: v.externalCommand };
+  return { state: 'missing', waiverFile };
+}
+
 export function collect(cwd = process.cwd()) {
-  const cfg = loadConfig(cwd);
+  const v = loadConfig(cwd).config?.verify ?? {};
   const lines = [];
-  const v = cfg.config?.verify ?? {};
-  if (!v.external) {
+  const x = externalState(v, cwd);
+  if (x.state === 'off') {
     lines.push('verify.external is false: nothing to waive (run the configured verify set normally)');
     return { lines, exitCode: 0 };
   }
-  const waiverFile = v.waiverFile || '.sdd/verify-waived.txt';
-  const full = resolve(cwd, waiverFile);
-  if (existsSync(full)) {
-    lines.push(`external verification waived: ${waiverFile} exists`);
+  if (x.state === 'waived') {
+    lines.push(`external verification waived: ${x.waiverFile} exists`);
     return { lines, exitCode: 0 };
   }
-  if (v.externalCommand) {
+  if (x.state === 'command') {
     try {
-      execSync(v.externalCommand, { cwd, stdio: 'inherit' });
-      lines.push(`external verification command succeeded: ${v.externalCommand}`);
+      execSync(x.command, { cwd, stdio: 'inherit' });
+      lines.push(`external verification command succeeded: ${x.command}`);
       return { lines, exitCode: 0 };
     } catch (e) {
-      lines.push(`external verification command failed: ${v.externalCommand}`);
+      lines.push(`external verification command failed: ${x.command}`);
       return { lines, exitCode: e?.status ?? 1 };
     }
   }
   lines.push('external verification is required but unsatisfied');
-  lines.push(`create ${waiverFile} recording the human-run result, or set verify.externalCommand`);
+  lines.push(`create ${x.waiverFile} recording the human-run result, or set verify.externalCommand`);
   for (const k of ['build','test','lint','typecheck','format']) {
     if (v[k]) lines.push(`  configured ${k}: ${v[k]}`);
   }

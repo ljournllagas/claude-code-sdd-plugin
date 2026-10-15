@@ -151,24 +151,32 @@ test('/sdd-status runs the status script and nothing else', () => {
 });
 
 // ---------- playbook ----------
-const PLAYBOOK_A = [
-  '## 0. Ground rules', '## 1. Start-up', '## 2. Triage', '## 3. Lane QUICK', '## 4. Lane FULL — spec stage',
-  '## 5. Review loop (spec and plan)', '## 6. Lane FULL — plan stage', '## 12. Dispatch reference',
-];
+// The playbook is a core file plus chapters the team-lead reads on demand; each section lives in exactly one file.
+const PLAYBOOK_FILES = {
+  'playbook/team-lead.md': ['## 0. Ground rules', '## 1. Start-up', '## 2. Triage', '## 11. Finish and report', '## 12. Dispatch reference'],
+  'playbook/quick.md': ['## 3. Lane QUICK'],
+  'playbook/full.md': ['## 4. Lane FULL — spec stage', '## 5. Review loop (spec and plan)', '## 6. Lane FULL — plan stage', '## 8. Post-execution review (FULL)'],
+  'playbook/execution.md': ['## 7. Execution (FULL)'],
+  'playbook/amendments.md': ['## 9. Amendments after approval'],
+  'playbook/stops.md': ['## 10. Stop points'],
+  'playbook/resume.md': ['## 13. Resume'],
+  'playbook/legacy.md': ['## 14. Legacy plans'],
+};
+const playbook = () => Object.keys(PLAYBOOK_FILES).map(read).join('\n');
 
-test('playbook part A: headings present and in order', () => {
-  const t = read('playbook/team-lead.md');
-  let at = -1;
-  for (const h of PLAYBOOK_A) {
-    const i = t.indexOf(`\n${h}\n`);
-    assert.ok(i > at, `${h} missing or out of order`);
-    at = i;
+test('playbook: every section lives in exactly one file, in order; the core maps every chapter', () => {
+  for (const [file, heads] of Object.entries(PLAYBOOK_FILES)) {
+    const t = read(file);
+    assert.deepEqual(headings(t), heads.map((h) => h.slice(3)), `${file} sections`);
   }
-  assert.ok(t.trimEnd().endsWith('<!-- END PLAYBOOK -->'));
+  const core = read('playbook/team-lead.md');
+  for (const file of Object.keys(PLAYBOOK_FILES).slice(1)) assert.ok(core.includes(`<kit>/${file}`), `the core names ${file}`);
+  assert.ok(core.trimEnd().endsWith('<!-- END PLAYBOOK -->'));
+  assert.ok(core.length < 26000, `the core stays small (${core.length} characters)`);
 });
 
 test('playbook part A: key rules and tokens are present', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   const tokens = [
     // ground rules (AC-10a, AC-13, AC-32)
     'never edit the content of a spec or plan', 'exact single-line replacement', 'never infer approval', '.sdd/active.json', 'updated',
@@ -188,25 +196,8 @@ test('playbook part A: key rules and tokens are present', () => {
   for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
 });
 
-const PLAYBOOK_B = [
-  '## 7. Execution (FULL)', '## 8. Post-execution review (FULL)', '## 9. Amendments after approval',
-  '## 10. Stop points', '## 11. Finish and report',
-];
-
-test('playbook part B: headings between §6 and §12, in order; insertion marker removed', () => {
-  const t = read('playbook/team-lead.md');
-  assert.ok(!t.includes('INSERTED HERE BY TASK 16'));
-  let at = t.indexOf('\n## 6. Lane FULL — plan stage\n');
-  assert.ok(at > 0);
-  for (const h of [...PLAYBOOK_B, '## 12. Dispatch reference']) {
-    const i = t.indexOf(`\n${h}\n`);
-    assert.ok(i > at, `${h} missing or out of order`);
-    at = i;
-  }
-});
-
 test('playbook part B: execution, review, amendment, stop and finish rules are present', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   const tokens = [
     // §7 (AC-11, AC-29, AC-34)
     'executing', 'pre-flight', 'dirty_at_start', 'never re-recorded', 'in_progress', 'attempt_tier', 'failures_at_last_tier', 'last_tier',
@@ -243,22 +234,23 @@ const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
   'CHANGELOG.md',
+  'README.md',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
-  'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status.mjs', 'bin/verify-waiver.mjs',
+  'bin/card.mjs', 'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/marker.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status.mjs', 'bin/task-done.mjs', 'bin/verify-waiver.mjs', 'bin/verify.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
-  'playbook/team-lead.md',
+  'playbook/amendments.md', 'playbook/execution.md', 'playbook/full.md', 'playbook/legacy.md', 'playbook/quick.md', 'playbook/resume.md', 'playbook/stops.md', 'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json', 'templates/task.md',
-  'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status.test.mjs', 'test/verify-waiver.test.mjs',
-  'test/helpers/typesafe-mock.mjs',
+  'test/card.test.mjs', 'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/marker.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status.test.mjs', 'test/task-done.test.mjs', 'test/verify-waiver.test.mjs', 'test/verify.test.mjs',
+  'test/helpers/project.mjs', 'test/helpers/typesafe-mock.mjs',
 ];
 
 test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is named sdd', () => {
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.5.3');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.0');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -283,9 +275,12 @@ test('AC-2: no toolchain names in agents, commands, playbook, templates, bin or 
 test('AC-3: scripts import only Node built-ins (sibling Kit modules where documented)', () => {
   const allowedRelative = {
     'bin/status.mjs': ['./route.mjs', './plan.mjs', './outcome.mjs'], 'bin/index.mjs': ['./route.mjs'], 'bin/plan.mjs': ['./route.mjs', './index.mjs'],
-    'bin/outcome.mjs': ['./route.mjs'],
+    'bin/outcome.mjs': ['./route.mjs', './marker.mjs'], 'bin/marker.mjs': ['./route.mjs', './plan.mjs'],
+    'bin/card.mjs': ['./route.mjs', './plan.mjs', './marker.mjs'], 'bin/verify.mjs': ['./route.mjs', './plan.mjs', './marker.mjs', './verify-waiver.mjs'],
+    'bin/task-done.mjs': ['./route.mjs', './plan.mjs', './marker.mjs', './outcome.mjs'], 'bin/verify-waiver.mjs': ['./route.mjs'],
+    'bin/cite-check.mjs': ['./index.mjs'],
   };
-  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'bin/outcome.mjs', 'hooks/guard.mjs']) {
+  for (const f of ['bin/route.mjs', 'bin/detect.mjs', 'bin/status.mjs', 'bin/index.mjs', 'bin/plan.mjs', 'bin/outcome.mjs', 'bin/marker.mjs', 'bin/card.mjs', 'bin/verify.mjs', 'bin/task-done.mjs', 'bin/verify-waiver.mjs', 'bin/cite-check.mjs', 'hooks/guard.mjs']) {
     const text = read(f);
     assert.ok(!/\brequire\s*\(/.test(text), `${f} uses require`);
     assert.ok(!/\bimport\s*\(/.test(text), `${f} uses dynamic import`);
@@ -310,8 +305,9 @@ test('config/detectors.json is the one place toolchain names live', () => {
 });
 
 test('every playbook card/dispatch/section reference points at a heading that exists', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   const have = new Set([...t.matchAll(/^## (\d+)\./gm)].map((m) => m[1]));
+  assert.equal(have.size, 15, 'sections 0-14');
   for (const m of t.matchAll(/§(\d+)(?:\.\d+)?/g)) assert.ok(have.has(m[1]), `playbook references §${m[1]} but no such section`);
 });
 
@@ -351,7 +347,7 @@ test('v0.2 rules are present in the agent prompts', () => {
 });
 
 test('playbook and /sdd-init run the Index script and define the status edit', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   for (const tok of ['bin/index.mjs', 'status edit', 'cfg.paths.index', 'before the first analyst dispatch', '.*.tmp']) {
     assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
   }
@@ -376,7 +372,7 @@ test('v0.3 config: the two new limits are in the default config and the schema',
 });
 
 test('v0.3 playbook: outline, expansion, slices, scopes, resume and the plan-check stop are present', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   const tokens = [
     'outline-draft', 'outline-review', 'outline-approval', 'approved_slices', 'limits.sliceMaxTasks', 'limits.expandBatchTasks',
     'MODE: OUTLINE', 'MODE: EXPAND', 'OUTLINE-GAP', 'bin/plan.mjs', 'Scope: outline', 'Scope: slice', 'Scope: plan',
@@ -395,7 +391,7 @@ test('v0.3 dry-run scenarios cover cutoff resume, the size gate and a legacy pla
 
 // ---------- v0.3 final-review fixes ----------
 test('v0.3 playbook: resume tells mid-expansion from requested changes; legacy, return_stage, progress and total rules are present', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   const tokens = [
     // review records carry a scope, so resume can tell "changes requested at a gate" from "cut mid-expansion"
     '· scope slice <n>', 'records with `scope outline`', 'records with `scope slice <n>`',
@@ -411,7 +407,7 @@ test('v0.3 playbook: resume tells mid-expansion from requested changes; legacy, 
 
 // ---------- outcome logging (spec 2026-10-13-sdd-outcome-logging) ----------
 test('outcome logging: the playbook states the marker shape, the line rules and the quoting', () => {
-  const t = read('playbook/team-lead.md');
+  const t = playbook();
   const tokens = [
     'bin/outcome.mjs',
     // AC-9: the one new marker field, shown in the exact entry shape
@@ -437,4 +433,36 @@ test('v0.3 planner prompt: amendments keep the index in agreement; EXPAND copies
   for (const tok of ['update its entry in the manifest', 'copy that task\'s `Produces` signatures verbatim']) {
     assert.ok(t.includes(tok), `planner.md must contain ${JSON.stringify(tok)}`);
   }
+});
+
+// ---------- v0.6: token savings and the audit fixes ----------
+test('v0.6 agent prompts: starting paths, light specs, caps, grounding notes, the runner, task-aware code review', () => {
+  const must = {
+    analyst: ['Starting paths:', 'Spec size: light', 'AC cap:', 'searching outward only'],
+    planner: ['Grounding notes:', 'Task file line cap:', 'append each new verified fact', 'in its own backticks', 'testOne` command for `Green:`'],
+    developer: ['Runner:', 'verify.mjs', '**except** the Verify block\'s `test` command', 'Start from the brief\'s expected paths', 'grows past 5 files'],
+    reviewer: ['Review only these blocks', 'Scripts check the mechanics', 'Goal:', 'Plan:', 'an AC that no change implements is a blocker', 'Spec size: light'],
+  };
+  for (const [name, tokens] of Object.entries(must)) {
+    const t = read(`agents/${name}.md`);
+    for (const tok of tokens) assert.ok(t.includes(tok), `${name}.md must contain ${JSON.stringify(tok)}`);
+  }
+  // the reviewer no longer re-checks what scripts check
+  const r = read('agents/reviewer.md');
+  assert.ok(!r.includes('check with Glob'), 'path existence is plan.mjs check --paths');
+  assert.ok(!r.includes('opens and closes with `---`'), 'the frontmatter block is cite-check.mjs');
+});
+
+test('v0.6 playbook: the scripts carry the bookkeeping and every prompt carries what its agent needs', () => {
+  const t = playbook();
+  const tokens = [
+    'bin/marker.mjs', 'bin/card.mjs', 'bin/verify.mjs', 'bin/task-done.mjs', 'bin/doctor.mjs', '--from-marker', '--record <key>', '--retry <key>', '--resume <key>',
+    'Starting paths:', 'Spec size:', 'AC cap: <cfg.limits.maxAcceptanceCriteria>', 'Grounding notes: .sdd/<slug>.grounding.md', 'Task file line cap: <cfg.limits.maxTaskFileLines>',
+    '[Goal: <the QUICK brief\'s goal>]', '[Plan: <manifest path>]', 'Runner: node "<kit>/bin/verify.mjs"', '--paths', 'verify.external', 'never Write or Edit the file yourself',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `playbook must contain ${JSON.stringify(tok)}`);
+});
+
+test('v0.6 config: the final code review never routes below standard', () => {
+  assert.equal(JSON.parse(read('config/sdd.config.default.json')).stageFloors['reviewer-code'], 'standard');
 });

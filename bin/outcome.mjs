@@ -3,6 +3,7 @@
 // Never blocks a run: a runtime problem is one stderr warning and exit 0; only malformed flags exit 2.
 import { resolve, basename } from 'node:path';
 import { loadConfig, appendLog, TIERS, isPlainObject } from './route.mjs';
+import { readMarker } from './marker.mjs';
 
 export const RESULTS = ['pass', 'fail', 'blocked'];
 export const SOURCES = ['typesafe', 'fallback', 'escalation'];
@@ -69,10 +70,29 @@ export function buildOutcome(fields, now = new Date()) {
   return { ts: now.toISOString(), kind: 'outcome', stage: 'developer', ...fields };
 }
 
+// `--from-marker` fills --slug, --first-attempt, --tier, --source and --reason from the marker's entry for --task
+// (§7.3 Outcome line), so they are never copied by hand. Flags given explicitly win. Returns null: write no line.
+export function fromMarker(argv, cwd) {
+  const rest = argv.filter((a) => a !== '--from-marker');
+  const i = rest.indexOf('--task');
+  if (i < 0 || i + 1 >= rest.length) throw new UsageError('--task: required');
+  let m;
+  try { m = readMarker(cwd); } catch (e) { throw new UsageError(`--from-marker: ${e.message}`); }
+  const e = m?.tasks?.[rest[i + 1]];
+  if (!isPlainObject(e) || !isPlainObject(e.routed)) return null;
+  const fill = { '--slug': m.slug, '--first-attempt': String(!e.last_tier), '--tier': e.attempt_tier, '--source': e.routed.source, '--reason': e.routed.reason };
+  for (const [f, v] of Object.entries(fill)) if (!rest.includes(f)) rest.push(f, String(v ?? ''));
+  return rest;
+}
+
 export function main(argv, cwd = process.cwd()) {
   const err = (m) => process.stderr.write(`${m}\n`);
   let line;
   try {
+    if (argv.includes('--from-marker')) {
+      argv = fromMarker(argv, cwd);
+      if (argv === null) { err('sdd outcome: warning: the marker entry has no routed decision; no line written'); return 0; }
+    }
     line = buildOutcome(parseArgs(argv));
     const defects = validateOutcome(line);
     if (defects.length) {

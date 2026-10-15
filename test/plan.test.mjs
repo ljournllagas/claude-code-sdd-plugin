@@ -348,3 +348,54 @@ test('check input handling: --spec needs a value; an unknown --slice is a defect
   assert.equal(s.status, 1);
   assert.ok(s.stdout.includes('manifest: slice 9 is not listed under Slices'), s.stdout);
 });
+
+// ---------- v0.6: checks the reviewer no longer does by hand ----------
+test('a task with no Reuse: line, or an empty one, is a defect', () => {
+  const p = project({ files: { T2: taskFile(TASKS[1]).replace(/^Reuse:.*$/m, 'Reuse:') } });
+  assert.deepEqual(check(p, { scope: 'slice', slice: 1 }), ['T2: no Reuse: line (or an empty one)']);
+  const q = project({ files: { T1: taskFile(TASKS[0]).replace(/^Reuse:.*\n/m, '') } });
+  assert.ok(check(q, { scope: 'slice', slice: 1 }).includes('T1: no Reuse: line (or an empty one)'));
+});
+
+test('with a root, modify targets must exist or be created earlier; create directories must exist or be created earlier', () => {
+  const create = (t) => taskFile(t).replace(/- modify  /g, '- create  ');
+  // T1 creates src/a.js (src/ is missing) and test/a.test.js; T2 modifies src/b.js, which nobody creates.
+  const p = project({ files: { T1: create(TASKS[0]) } });
+  const defects = check(p, { scope: 'slice', slice: 1, root: p.dir });
+  assert.deepEqual(defects, [
+    'T1: create target src/a.js: directory src does not exist and no earlier task creates a file in it',
+    'T1: create target test/a.test.js: directory test does not exist and no earlier task creates a file in it',
+    'T2: modify target src/b.js does not exist and no earlier task creates it',
+  ]);
+  mkdirSync(join(p.dir, 'src'));
+  mkdirSync(join(p.dir, 'test'));
+  writeFileSync(join(p.dir, 'src', 'b.js'), '');
+  assert.deepEqual(check(p, { scope: 'slice', slice: 1, root: p.dir }), []);
+  assert.deepEqual(check(p, { scope: 'slice', slice: 1 }), [], 'without a root the paths are not checked');
+});
+
+test('a modify target created by an earlier task is fine; done tasks are not path-checked', () => {
+  const t2 = { ...TASKS[1], files: ['src/a.js'] };
+  const p = project({ tasks: [TASKS[0], t2, TASKS[2]], files: { T1: taskFile(TASKS[0]).replace('- modify  src/a.js', '- create  src/a.js').replace('- modify  test/a.test.js', '- create  test/a.test.js') } });
+  mkdirSync(join(p.dir, 'src'));
+  mkdirSync(join(p.dir, 'test'));
+  assert.deepEqual(check(p, { scope: 'slice', slice: 1, root: p.dir }), []);
+  const done = project({ files: { T2: taskFile(TASKS[1], { marker: '[x] done' }) } });
+  mkdirSync(join(done.dir, 'src'));
+  writeFileSync(join(done.dir, 'src', 'a.js'), '');
+  mkdirSync(join(done.dir, 'test'));
+  writeFileSync(join(done.dir, 'test', 'a.test.js'), '');
+  assert.deepEqual(check(done, { scope: 'slice', slice: 1, root: done.dir }), []);
+});
+
+test('the CLI checks Files targets only with --paths', () => {
+  const p = project();
+  writeFileSync(join(p.dir, 'sdd.config.json'), JSON.stringify({ version: 1, limits: { sliceMaxTasks: 2 } }));
+  const plain = spawnSync(process.execPath, [PLAN_CLI, 'check', p.rel, '--slice', '1'], { cwd: p.dir, encoding: 'utf8' });
+  assert.equal(plain.stdout.trim(), 'ok');
+  const paths = spawnSync(process.execPath, [PLAN_CLI, 'check', p.rel, '--slice', '1', '--paths'], { cwd: p.dir, encoding: 'utf8' });
+  assert.equal(paths.status, 1);
+  assert.match(paths.stdout, /T1: modify target src\/a\.js does not exist/);
+  const bad = spawnSync(process.execPath, [PLAN_CLI, 'tasks', p.rel, '--paths'], { cwd: p.dir, encoding: 'utf8' });
+  assert.equal(bad.status, 2);
+});

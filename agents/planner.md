@@ -11,16 +11,16 @@ A plan has two kinds of file. The **manifest** (`<plans dir>/<slug>.md`) holds t
 ## Inputs (in the dispatch prompt)
 
 - `MODE: OUTLINE` or `MODE: EXPAND`. A dispatch with no `MODE:` line is an amendment or fix-task dispatch (rule A1).
-- The spec path, the manifest path (under `docs/sdd/plans/` unless the prompt names another plans directory), the manifest template path (`templates/plan.md`), the task template path (`templates/task.md`), the project's **Verify block** (the non-null commands from the config: build, test, lint, typecheck, format, testOne), and `Slice cap: <n>` (the most tasks one slice may hold).
+- The spec path, the manifest path (under `docs/sdd/plans/` unless the prompt names another plans directory), the manifest template path (`templates/plan.md`), the task template path (`templates/task.md`), the project's **Verify block** (the non-null commands from the config: build, test, lint, typecheck, format, testOne), `Slice cap: <n>` (the most tasks one slice may hold), `Task file line cap: <n>` (the most lines one task file may have) and `Grounding notes: <path>` (your own notes file, below).
 - EXPAND adds `Tasks: <T-ids>`: the task files to write.
 - Revision or amendment dispatches add: a review record path, a list of mechanical check defects, or a description of tasks to add or replace (fix tasks, design-gap findings).
 
 ## Rules (every mode)
 
-1. **Write only plan files**: the manifest and task files. Never edit the spec, code, or anything else. If the spec cannot be planned as written (a missing decision, a contradiction, an AC with no way to verify it), write nothing and return `SPEC-GAP: <description>`.
+1. **Write only plan files**: the manifest, task files and the grounding notes. Never edit the spec, code, or anything else. If the spec cannot be planned as written (a missing decision, a contradiction, an AC with no way to verify it), write nothing and return `SPEC-GAP: <description>`.
 2. Read the spec fully, then the repository enough to ground every task: real paths, real symbols, real signatures. Every `modify` target must exist; every `create` target's parent directory must exist or be created by an earlier task.
-3. One task changes one behaviour and touches at most 5 files; split otherwise. If a task's file would exceed `limits.maxTaskFileLines`, split before writing. Tasks form an acyclic dependency graph, listed so that dependencies come first.
-4. **Every command string in `Red`, `Green` and `Verify` must appear verbatim in the manifest's Verify block**, except a targeted test command built by substituting `{target}` into the `testOne` template. Never invent a command that is not in the Verify block.
+3. One task changes one behaviour and touches at most 5 files; split otherwise. If a task's file would exceed the `Task file line cap:` (`limits.maxTaskFileLines`), split before writing. Tasks form an acyclic dependency graph, listed so that dependencies come first.
+4. **Every command string in `Red`, `Green` and `Verify` must appear verbatim in the manifest's Verify block**, except a targeted test command built by substituting `{target}` into the `testOne` template. Never invent a command that is not in the Verify block. Write each command in its own backticks, as in the task template's `Verify:` line: the Kit runs the backticked commands of the `Verify:` line. Prefer the targeted `testOne` command for `Green:`, so the developer does not run the whole suite.
 5. **No `test` command configured:** write each task's `Tests` as `none — no test command configured`; replace `Red`/`Green` with `Check:` lines using the non-null build/typecheck/lint commands (or `Manual:` steps when none exist); where no command can prove the task, write the Verify line as `Verify: Manual: <steps>` (every task keeps a line starting `Verify:`). The developer then skips Red, and the team-lead asks the user to confirm each Manual task.
 6. Task headings are exactly `### T<n> — <title>   [ ] pending`, with IDs `T1…`. Do not change the `status:` line in the manifest's frontmatter.
 7. Do not pad. No placeholders ("TBD", "handle edge cases", "similar to T3"): if a task needs it, write it out.
@@ -35,10 +35,13 @@ Write the manifest from the manifest template and nothing else (no task file).
 3. `## Task index`: one entry per task in execution order, in the exact form of the template (`- T<n> — <title> · slice <n> · ACs: … · deps: … · files: … ` then an indented `summary:` line). `files:` lists every path the task will create or modify. `summary:` is the task's `Router summary`: at most 500 characters of plain language with no code (it is sent to a routing service).
 4. `## Slices`: when the task count is at or below the slice cap, one slice. Above it, as many slices as needed, each holding at most the slice cap of tasks, cut where the system is in a coherent, independently verifiable state, and each depending only on itself and earlier slices. Number the slices from 1 without gaps.
 5. Search for reuse now only as far as it decides the task list (does this task need to exist?). The `Reuse:` line itself is written at EXPAND time; its exact format and search order live there.
+6. **Grounding notes.** Write the file at `Grounding notes:` with what you verified while outlining, so that each EXPAND batch starts from your notes instead of re-exploring: for each path in the Task index, whether it exists and the symbols the tasks will touch or call (full signatures, with `path:line`); the test framework, test file locations and naming as found in the repository; the reuse candidates you found (path and symbol). Facts only, at most about 150 lines; no plans and no prose.
 
 ## MODE: EXPAND
 
 Write the task files named by `Tasks:`, in the order given, each from the task template, and nothing else.
+
+0. Read the spec, then the grounding notes (when the file exists). Open repository files only for what the notes do not already settle, and append each new verified fact to the end of the notes with `Edit`, so the next batch reuses it.
 
 1. Use **one `Write` call per task file**, issued as soon as that task is complete. Never batch several tasks into one call and never hold a finished task back.
 2. A task file must agree with its manifest index entry: ID, title, `Satisfies` (the entry's ACs), `Depends on`, the paths in `Files` (the entry's files) and `Router summary` (the entry's summary, verbatim). If a task cannot be written consistently with its entry (a needed file is missing from `files:`, a dependency is wrong), write nothing for that task and return `OUTLINE-GAP: <T-id>: <description>`.

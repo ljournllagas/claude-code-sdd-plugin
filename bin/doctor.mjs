@@ -68,9 +68,9 @@ export function collect(cwd = process.cwd()) {
   try { if (existsSync(reviewDir)) reviewCount = readdirSync(reviewDir).filter((f) => /\.md$/.test(f)).length; } catch {}
   lines.push(`  review records: ${reviewCount}`);
 
-  let hint = 'Follow playbook section 1.6 resume rules for the recorded stage.';
+  let hint = 'Follow the playbook resume rules (section 13, playbook/resume.md) for the recorded stage.';
   switch (stage) {
-    case 'executing': hint = 'Resume execution (playbook section 7): run the next pending task of the current slice.'; break;
+    case 'executing': hint = 'Resume execution (playbook section 7): re-dispatch an interrupted attempt first, then the next pending task of the current slice.'; break;
     case 'plan-draft': hint = 'Resume planning (playbook section 6 step 4): expand the first unexpanded task of the current slice.'; break;
     case 'plan-approval': hint = 'Ask the user to approve or request changes for the current plan/slice.'; break;
     case 'spec-approval': hint = 'Ask the user to approve or request changes for the spec.'; break;

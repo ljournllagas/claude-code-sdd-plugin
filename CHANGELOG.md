@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.6.0 (2026-10-15)
+
+Token savings and the fixes from the agent audit.
+
+### Added
+- `bin/card.mjs`: routes a delegation in one command. It builds the card from the plan (developer, EXPAND batch, plan review) or from flags, and with `--record` writes the attempt entry to the marker, including the tier reset on escalation (`--retry`, `--resume`).
+- `bin/marker.mjs`: the only way the team-lead changes `.sdd/active.json` (`init`, `set`, `del`, `push`, `fail`, `baseline`, `preflight`), plus the shared git facts (changed paths relative to the project, run artifacts).
+- `bin/verify.mjs`: runs a verify set (a task's `Verify:` line, the QUICK set or explicit commands) and prints one line; a failure's last 40 lines go to the task's failure file. It enforces `verify.external` (waiver file or `verify.externalCommand`), which nothing used before.
+- `bin/task-done.mjs`: the success path of a task in one command (mark `[x] done`, leftover-edit stop, commit of the task's Files only, pass outcome line).
+- `outcome.mjs --from-marker`: reads slug, tier, source, reason and first-attempt from the marker instead of hand-copied flags.
+- `plan.mjs check --paths`: `modify` targets and `create` directories must exist or be created by an earlier task. Every check now also rejects a task with no `Reuse:` line.
+- `cite-check.mjs` checks the spec's frontmatter block.
+
+### Changed
+- The playbook is split: `team-lead.md` (core: §0–§2, §11, §12) is always read; `quick.md`, `full.md`, `execution.md`, `stops.md`, `amendments.md`, `resume.md` (§13) and `legacy.md` (§14) are read only when the run needs them. A QUICK run loads about 40 KB of playbook instead of 63 KB.
+- Team-lead: runs `doctor.mjs` before resuming; passes the triage paths, a spec size (`light` for small non-risky FULL work), the AC cap, the task-file line cap and a grounding-notes path to the agents it dispatches.
+- Analyst: starts from the triage paths with a bounded search; light specs answer non-applicable headings with "None identified"; the AC cap comes in the prompt.
+- Planner: writes grounding notes at OUTLINE that EXPAND batches read (and extend) instead of re-exploring; backticks each Verify command; prefers the targeted `testOne` command for `Green:`. EXPAND batches route on their tasks' own summaries.
+- Developer: runs commands through the `verify.mjs` runner (one line or a 40-line tail); runs `Green:` and the non-test Verify commands but leaves the full suite to the team-lead; QUICK work starts from the expected paths and stops at 5 files.
+- Reviewer: code mode reads the spec's ACs and the plan index (FULL) or the goal (QUICK) and can flag an unimplemented AC; spec and plan modes skip everything the scripts already check; amendments are reviewed block by block (`Review only these blocks`).
+- `stageFloors.reviewer-code` is `standard`: the final review never routes to the lightest model.
+- `limits.maxAcceptanceCriteria` and `limits.maxTaskFileLines` are validated with the other limits.
+
+### Fixed
+- The layout test now lists `README.md` (it failed after the README was added).
+
 ## 0.5.3 (2026-10-14)
 
 ### Fixed

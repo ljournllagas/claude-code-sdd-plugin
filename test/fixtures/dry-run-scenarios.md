@@ -113,6 +113,18 @@ Set `limits.verifyFailuresPerTier` to 1 and make one task's verify fail once (fo
 - [ ] A `Manual:` task (unset `verify.test` first): answering **Confirm done** or **Not done** writes no outcome line.
 - [ ] Resume at `quick-review` in a QUICK run after a cut: the pass line already written is not duplicated.
 
+## Scenario 14 — Token savings and script bookkeeping (v0.6)
+
+Run one QUICK request (Scenario 1) and one FULL request with two tasks (Scenario 2). Watch the team-lead's tool calls.
+- [ ] QUICK: the team-lead read `playbook/team-lead.md`, `quick.md` and `execution.md` only; `full.md`, `stops.md`, `amendments.md`, `resume.md` and `legacy.md` were never opened. FULL: `full.md` and `execution.md` were read once each.
+- [ ] The marker was only ever changed through `bin/marker.mjs` (no Write or Edit of `.sdd/active.json`); every developer dispatch was routed with `bin/card.mjs … --record <key>` and no `.sdd/card.json` was written.
+- [ ] Every verify ran through `bin/verify.mjs` and printed one line; no test-runner output appeared in the main session. A failing verify wrote `.sdd/review/<slug>-<task>.fail.txt` (at most 40 lines).
+- [ ] Each FULL task finished with one `bin/task-done.mjs` call: heading `[x] done`, one commit with only the task's files, one `pass` outcome line. Leave a stray file in the tree before a task finishes: the call exits 3 listing it, nothing is committed, and after **Keep** the same call commits.
+- [ ] The analyst prompt carried `Starting paths:`, `Spec size:` and `AC cap:`; a small request got a light spec. The planner prompt carried `Grounding notes:` and `Task file line cap:`, and `.sdd/<slug>.grounding.md` existed after the outline and was read by each EXPAND batch.
+- [ ] Each developer prompt carried a `Runner:` line; the developer did not run the full test suite (its report says `Verify: … left to the team-lead` for the `test` command).
+- [ ] The final `code` reviewer prompt carried `Spec:` and `Plan:` (FULL) or `Goal:` (QUICK), and the decision log shows the `reviewer-code` stage at `standard` or above.
+- [ ] Resume a run after closing the window: `bin/doctor.mjs` ran first and its `issues:` lines (if any) were shown; then `resume.md` was read.
+
 ## Results
 
 Date: ____  Claude Code version: ____  Kit commit: ____

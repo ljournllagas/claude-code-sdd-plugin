@@ -9,7 +9,7 @@
     "maxSummaryChars": 500
   },
   "stageFloors":   { "triage":"light","analyst":"standard","planner":"standard","developer":"light",
-                     "reviewer-spec":"standard","reviewer-plan":"standard","reviewer-code":"light" },
+                     "reviewer-spec":"standard","reviewer-plan":"standard","reviewer-code":"standard" },
   "fallbackTiers": { "triage":"light","analyst":"deep","planner":"deep","developer":"standard",
                      "reviewer-spec":"deep","reviewer-plan":"deep","reviewer-code":"standard" },
   "riskPaths": {

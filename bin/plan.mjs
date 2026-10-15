@@ -2,7 +2,7 @@
 // SDD plan: reads a plan in either layout (one file, or a manifest plus one file per task), lists its tasks
 // and checks it mechanically. Read-only. Node built-ins only, plus sibling Kit modules.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { resolve, dirname, basename, join, relative } from 'node:path';
+import { resolve, dirname, basename, join, relative, posix } from 'node:path';
 import { loadConfig } from './route.mjs';
 import { parseFrontmatter } from './index.mjs';
 
@@ -30,7 +30,7 @@ export function parsePlanTasks(text) {
 
 // One task block (heading plus fields). Lines inside a code fence are never read as fields.
 export function parseTaskBlock(text) {
-  const out = { id: null, title: null, marker: null, satisfies: [], dependsOn: [], routerSummary: null, files: [], hasVerify: false };
+  const out = { id: null, title: null, marker: null, satisfies: [], dependsOn: [], routerSummary: null, files: [], hasVerify: false, verify: null, commit: null, reuse: null, ops: [] };
   let inFence = false;
   let current = null;
   for (const line of toLines(text)) {
@@ -45,12 +45,14 @@ export function parseTaskBlock(text) {
       if (current === 'Satisfies') out.satisfies = splitList(v);
       else if (current === 'Depends on') out.dependsOn = splitList(v);
       else if (current === 'Router summary') out.routerSummary = v;
-      else if (current === 'Verify') out.hasVerify = true;
+      else if (current === 'Verify') { out.hasVerify = true; out.verify = v; }
+      else if (current === 'Commit') out.commit = v;
+      else if (current === 'Reuse') out.reuse = v;
       continue;
     }
     if (current === 'Files') {
-      const f = /^\s*-\s+(?:create|modify)\s+(?:`([^`]+)`|(\S+))/.exec(line);
-      if (f) out.files.push(f[1] ?? f[2]);
+      const f = /^\s*-\s+(create|modify)\s+(?:`([^`]+)`|(\S+))/.exec(line);
+      if (f) { out.files.push(f[2] ?? f[3]); out.ops.push({ op: f[1], path: f[2] ?? f[3] }); }
     }
   }
   return out;
@@ -155,7 +157,9 @@ const specAcIds = (text) => [...new Set([...String(text).matchAll(/\*\*(AC-\d+[a
 
 // Mechanical checks. scope: 'outline' (manifest only), 'slice' (outline plus that slice's task files), 'plan' (everything).
 // Returns one defect string per problem, `<T-id or manifest>: <problem>`, in a stable order.
-export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sliceMax = 12, taskFileLineLimit = 600 } = {}) {
+// With `root` (the project directory), Files targets are checked too: a `modify` target exists or an earlier task
+// creates it, and a `create` target's directory exists or an earlier task creates a file in it.
+export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sliceMax = 12, taskFileLineLimit = 600, root = null } = {}) {
   const defects = [];
   const add = (who, msg) => defects.push(`${who}: ${msg}`);
   const m = plan.manifest;
@@ -227,6 +231,12 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
   }
 
   if (scope === 'outline') return defects;
+  const created = new Map(); // task ID → the paths every task before it creates
+  const seen = [];
+  for (const t of plan.tasks) {
+    created.set(t.id, new Set(seen));
+    for (const o of t.parsed?.ops ?? []) if (o.op === 'create') seen.push(toSlash(o.path));
+  }
   for (const t of plan.tasks.filter((x) => scope === 'plan' || x.slice === slice)) {
     if (!t.expanded) { add(t.id, 'not expanded (no task file)'); continue; }
     const p = t.parsed;
@@ -238,6 +248,19 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
     if (!sameSet(p.files, e.files)) add(t.id, 'Files differ from the index');
     if ((p.routerSummary ?? '') !== (e.summary ?? '')) add(t.id, 'Router summary differs from the index summary');
     if (!p.hasVerify) add(t.id, 'no Verify: line');
+    if (!p.reuse) add(t.id, 'no Reuse: line (or an empty one)');
+    if (root !== null && t.marker === ' ') {
+      const before = created.get(t.id);
+      const dirs = new Set([...before].map((x) => posix.dirname(x)));
+      for (const o of p.ops) {
+        const path = toSlash(o.path);
+        if (o.op === 'modify' && !existsSync(resolve(root, path)) && !before.has(path)) add(t.id, `modify target ${path} does not exist and no earlier task creates it`);
+        const dir = posix.dirname(path);
+        if (o.op === 'create' && dir !== '.' && !existsSync(resolve(root, dir)) && !dirs.has(dir) && ![...dirs].some((d) => d.startsWith(`${dir}/`))) {
+          add(t.id, `create target ${path}: directory ${dir} does not exist and no earlier task creates a file in it`);
+        }
+      }
+    }
     try {
       const raw = readFileSync(t.file, 'utf8').split(/\r?\n/);
       const n = raw.length > 1 && raw[raw.length - 1] === '' ? raw.length - 1 : raw.length;
@@ -248,7 +271,7 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
   return defects;
 }
 
-const USAGE = 'usage: plan.mjs tasks <manifest> | plan.mjs check <manifest> [--outline | --slice <n> | --plan] [--spec <path>]';
+const USAGE = 'usage: plan.mjs tasks <manifest> | plan.mjs check <manifest> [--outline | --slice <n> | --plan] [--spec <path>] [--paths]';
 
 export function run(argv, cwd = process.cwd()) {
   const out = [];
@@ -260,13 +283,14 @@ export function run(argv, cwd = process.cwd()) {
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--outline' || a === '--plan') flags.scope = a.slice(2);
+    else if (a === '--paths') flags.paths = true;
     else if (a === '--slice') { flags.scope = 'slice'; flags.slice = Number(rest[++i]); }
     else if (a === '--spec') { flags.spec = rest[++i]; if (flags.spec === undefined) flags.specMissing = true; }
     else pos.push(a);
   }
   const bad = (cmd !== 'tasks' && cmd !== 'check') || pos.length !== 1 || flags.specMissing === true
     || (flags.scope === 'slice' && !(Number.isInteger(flags.slice) && flags.slice > 0))
-    || (cmd === 'tasks' && (flags.scope !== undefined || flags.spec !== undefined));
+    || (cmd === 'tasks' && (flags.scope !== undefined || flags.spec !== undefined || flags.paths));
   if (bad) { err.push(USAGE); return done(2); }
 
   let plan;
@@ -280,7 +304,7 @@ export function run(argv, cwd = process.cwd()) {
   if (flags.spec !== undefined) {
     try { specText = readFileSync(resolve(cwd, flags.spec), 'utf8'); } catch { err.push(`plan.mjs: cannot read spec ${flags.spec}`); return done(1); }
   }
-  const defects = checkPlan(plan, { scope: flags.scope ?? 'plan', slice: flags.slice ?? null, spec: specText, sliceMax: loaded.config.limits.sliceMaxTasks, taskFileLineLimit: loaded.config.limits.maxTaskFileLines });
+  const defects = checkPlan(plan, { scope: flags.scope ?? 'plan', slice: flags.slice ?? null, spec: specText, sliceMax: loaded.config.limits.sliceMaxTasks, taskFileLineLimit: loaded.config.limits.maxTaskFileLines, root: flags.paths ? cwd : null });
   if (defects.length === 0) { out.push('ok'); return done(0); }
   out.push(...defects);
   return done(1);

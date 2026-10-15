@@ -123,7 +123,7 @@ export function validateConfig(cfg) {
   else for (const k of ['specs', 'plans', 'log', 'active', 'index']) if (!isStr(cfg.paths[k])) err(`paths.${k}`, 'must be a non-empty string');
 
   if (!isPlainObject(cfg.limits)) err('limits', 'must be an object');
-  else for (const k of ['reviewRounds', 'verifyFailuresPerTier', 'reviewFixRounds', 'openQuestions', 'questionRounds', 'sliceMaxTasks', 'expandBatchTasks']) {
+  else for (const k of ['reviewRounds', 'verifyFailuresPerTier', 'reviewFixRounds', 'openQuestions', 'questionRounds', 'sliceMaxTasks', 'expandBatchTasks', 'maxAcceptanceCriteria', 'maxTaskFileLines']) {
     if (!isPosInt(cfg.limits[k])) err(`limits.${k}`, 'must be a positive integer');
   }
 

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { run, checkCitations, findCitations, extractBackground } from '../bin/cite-check.mjs';
+import { run, checkCitations, findCitations, extractBackground, checkSpecFrontmatter } from '../bin/cite-check.mjs';
+
+const FM = '---\ntype: spec\ntitle: Demo\ndescription: A demo spec.\nstatus: draft\ntimestamp: 2026-10-15\n---\n\n';
 
 function mkd() {
   const d = join(tmpdir(), 'sdd-cite-' + Math.random().toString(36).slice(2));
@@ -67,12 +69,12 @@ test('checkCitations fails for a missing Background section', () => {
 
 test('run CLI returns exit 0 on ok and exit 1 on defect', () => {
   const d = mkd();
-  writeFileSync(join(d, 'spec.md'), '## Background\nFoo.cs:1\n', 'utf8');
+  writeFileSync(join(d, 'spec.md'), FM + '## Background\nFoo.cs:1\n', 'utf8');
   const ok = run(['spec.md'], d);
   assert.equal(ok.code, 0);
   assert.equal(ok.stdout.trim(), 'ok');
 
-  writeFileSync(join(d, 'spec2.md'), '## Background\nFoo.cs:99\n', 'utf8');
+  writeFileSync(join(d, 'spec2.md'), FM + '## Background\nFoo.cs:99\n', 'utf8');
   const bad = run(['spec2.md'], d);
   assert.equal(bad.code, 1);
   assert.ok(bad.stdout.includes('citation line out of range'));
@@ -81,4 +83,16 @@ test('run CLI returns exit 0 on ok and exit 1 on defect', () => {
 test('run CLI returns exit 2 for missing argument', () => {
   const r = run([], mkd());
   assert.equal(r.code, 2);
+});
+
+test('the spec gate checks the frontmatter block', () => {
+  assert.deepEqual(checkSpecFrontmatter(FM + '## Goal\n'), []);
+  assert.deepEqual(checkSpecFrontmatter('## Goal\n'), ['spec: invalid frontmatter (no frontmatter)']);
+  assert.deepEqual(checkSpecFrontmatter(FM.replace('type: spec', 'type: plan')), ['spec: frontmatter type is plan, not spec']);
+  assert.deepEqual(checkSpecFrontmatter(FM.replace('description: A demo spec.\n', '')), ['spec: frontmatter has no description']);
+  const d = mkd();
+  writeFileSync(join(d, 'bare.md'), '## Background\nFoo.cs:1\n', 'utf8');
+  const r = run(['bare.md'], d);
+  assert.equal(r.code, 1);
+  assert.ok(r.stdout.includes('spec: invalid frontmatter'));
 });

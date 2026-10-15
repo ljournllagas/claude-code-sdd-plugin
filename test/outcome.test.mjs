@@ -170,3 +170,26 @@ test('validateOutcome accepts a good line and reports each kind of defect', () =
   assert.ok(O.validateOutcome(missing).length > 0);
   for (const v of [null, [], 'x', 7]) assert.ok(O.validateOutcome(v).length > 0);
 });
+
+// ---------- v0.6: values read from the marker ----------
+test('--from-marker fills slug, tier, source, reason and first_attempt from the marker entry', () => {
+  const d = tmp();
+  mkdirSync(join(d, '.sdd'));
+  const routed = { source: 'escalation', reason: 'retry at same tier (1/2 failures at standard)' };
+  const marker = { slug: '20261015-demo', lane: 'FULL', stage: 'executing', updated: new Date().toISOString(), tasks: {
+    T1: { attempt_tier: 'standard', in_progress: false, routed: { source: 'fallback', reason: 'no key' } },
+    T2: { attempt_tier: 'standard', last_tier: 'standard', failures_at_last_tier: 1, in_progress: false, routed },
+    T3: { attempt_tier: 'light', in_progress: false },
+  } };
+  writeFileSync(join(d, '.sdd', 'active.json'), JSON.stringify(marker));
+  assert.equal(run(d, ['--from-marker', '--task', 'T1', '--result', 'fail']).status, 0);
+  assert.equal(run(d, ['--task', 'T2', '--from-marker', '--result', 'pass', '--duration-ms', '900']).status, 0);
+  const [a, b] = logLines(d).map((l) => JSON.parse(l));
+  assert.deepEqual([a.slug, a.task, a.tier, a.source, a.reason, a.first_attempt, a.result], ['20261015-demo', 'T1', 'standard', 'fallback', 'no key', true, 'fail']);
+  assert.deepEqual([b.first_attempt, b.source, b.reason, b.duration_ms], [false, 'escalation', routed.reason, 900]);
+  const none = run(d, ['--from-marker', '--task', 'T3', '--result', 'pass']);
+  assert.equal(none.status, 0);
+  assert.match(none.stderr, /no routed decision; no line written/);
+  assert.equal(logLines(d).length, 2);
+  assert.equal(run(d, ['--from-marker', '--result', 'pass']).status, 2);
+});
