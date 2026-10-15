@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.1');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.2');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -479,4 +479,22 @@ test('v0.6.1 developer: Red evidence, green-only TASK-DONE, bounded re-runs, sco
   const blocked = t.slice(t.indexOf('TASK-BLOCKED: <class> — <reason>\nFiles changed:'));
   assert.ok(blocked.includes('Files created:'), 'a TASK-BLOCKED return lists the files it touched');
   assert.ok(playbook().includes(`Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'`), 'the dispatch quotes the command as the developer prompt does');
+});
+
+// ---------- v0.6.2: developer re-audit fixes ----------
+test('v0.6.2 developer: lane-wide minimum change, fixed tests, start snapshot, bounded rounds, no hardcoding', () => {
+  const t = read('agents/developer.md');
+  const always = t.slice(t.indexOf('## Always'), t.indexOf('## Contract (FULL)'));
+  for (const tok of ['**Smallest change.**', 'Do not refactor beyond the task', 'rather than reimplementing', 'unless the recipe, task or brief names it'])
+    assert.ok(always.includes(tok), `the Always rules (QUICK included) must contain ${JSON.stringify(tok)}`);
+  const tokens = [
+    'Do not special-case test inputs or hardcode expected values', 'or after 5 rounds in total', 'formatter or auto-fix (`--fix`, `--write`) unless the task names it',
+    'Never change the task\'s test code after you wrote it', 'If the task\'s test code is not in its test files yet, write it as given first',
+    '**start snapshot**', 'Never touch a path that is in the start snapshot', 'Leave no trace', 'skipped (<Check | FF DISPATCH | QUICK>)',
+    'Manual — left to the user', 'paths undone outside the Files list',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  assert.ok(!t.includes('files you did not create in this attempt'), 'FF protects paths edited before the attempt, not only files the developer did not create');
+  assert.ok(!playbook().includes('files you did not create in this attempt'), 'the FF dispatch line agrees with the developer prompt');
+  assert.match(t, /^description: Executes exactly one SDD plan task with test-first discipline \(or one QUICK brief\)/m);
 });

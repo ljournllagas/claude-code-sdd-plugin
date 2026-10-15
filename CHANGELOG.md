@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.2 (2026-10-15)
+
+Fixes from the developer-agent re-audit, plus the anti-hardcoding rule.
+
+### Changed
+- Developer: the smallest-change, `Reuse:`/YAGNI and no-refactor rules move to **Always**, so they bind QUICK work too (they were FULL-only).
+- Developer: implement the behaviour, not the examples — no special-casing of test inputs or hardcoded expected values.
+- Developer: the task's test code is fixed once written; a wrong given test is a `design-gap`. An FF dispatch writes the task's tests when they are missing (only the Red run is waived), so a first-attempt FF dispatch no longer skips them.
+- Developer: records a start snapshot (`git status`) before editing; the pre-return scope check undoes only paths that changed in this attempt and never touches a path in the snapshot (it used to "undo" changes it could not attribute).
+- Developer: no formatter or auto-fix unless the task names it, also on listed files (it could reformat untouched lines); at most 5 rounds in total besides the 3-same-failure stop; debug output and scratch files are removed before returning.
+- Developer: Red is skipped only for a `Check:` task, an FF dispatch or QUICK (`Manual:` replaces `Verify:`, not Red); a `Verify: Manual:` line is reported as left to the user; `Notes:` lists undone paths; QUICK narrows the test command to the tests it touched when the tool allows it; the description no longer claims test-first for QUICK.
+- Team-lead: the FF dispatch lines say "never restore or delete a path that already carried edits when this attempt started", matching the developer prompt.
+
 ## 0.6.1 (2026-10-15)
 
 Fixes from the developer-agent audit.

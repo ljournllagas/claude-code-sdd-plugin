@@ -121,7 +121,7 @@ Task: <T-id>]                             (legacy single-file plan, instead of t
 Verify block:
 - <key>: `<command>`
 Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
-[FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <.sdd/review/<slug>-<task>.fail.txt>. The Red check is waived. Fix forward; never restore or delete files you did not create in this attempt.]
+[FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <.sdd/review/<slug>-<task>.fail.txt>. The Red check is waived. Fix forward; never restore or delete a path that already carried edits when this attempt started.]
 [User guidance: <text>]
 ```
 
@@ -134,7 +134,7 @@ Verify set (run in order, stop at the first failure): <commands>
 Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
 Tests: <"add or update tests; the test command is <cmd>" | "no test command is configured">
 If the brief does not settle a decision, return TASK-BLOCKED.
-[FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <path>. Fix forward; never restore or delete files you did not create in this attempt.]
+[FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <path>. Fix forward; never restore or delete a path that already carried edits when this attempt started.]
 [Fix the review blockers marked "fix" in: <.sdd/review/<slug>-code-r1.md>]
 ```
 
