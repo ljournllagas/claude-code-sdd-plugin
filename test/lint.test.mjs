@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.10');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.11');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -605,7 +605,6 @@ test('v0.6.9: one closing status-and-diff command, no Diff review claim, suite h
   const dev = read('agents/developer.md');
   assert.ok(!dev.includes('Diff review:'), 'a self-reported review line invites unbacked claims');
   const exec = read('playbook/execution.md');
-  assert.ok(exec.includes('**Suite health.**'));
   assert.ok(exec.includes('Never stop on your own judgment that a retry cannot help'));
   assert.ok(read('playbook/stops.md').includes('**Suite already failing**'));
   const lead = read('playbook/team-lead.md');
@@ -621,4 +620,12 @@ test('v0.6.10: the developer keeps the stray-path check but no diff self-review;
   assert.ok(!/git diff/.test(dev), 'developer.md no longer asks for a git diff review');
   assert.ok(dev.includes('compare `git status --porcelain --untracked-files=all` with the start snapshot and the Files list'));
   assert.ok(read('agents/reviewer.md').includes("names and comments that break the repository's conventions"));
+});
+
+// ---------- v0.6.11: suite health at run start ----------
+test('v0.6.11: the suite health check runs right after lane confirmation, before any agent, in both lanes', () => {
+  const lead = read('playbook/team-lead.md');
+  assert.ok(lead.includes('**Suite health:** when `verify.test` is set, run it once'));
+  assert.ok(!read('playbook/execution.md').includes('Suite health'), 'no second check before the first task');
+  assert.ok(read('playbook/stops.md').includes('(§2 step 6: `verify.test` fails before any agent ran)'));
 });

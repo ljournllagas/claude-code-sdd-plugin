@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.11 (2026-10-15)
+
+### Changed
+- Team-lead: the **Suite health** check moves from just before the first task (§7.1) to right after lane confirmation (§2 step 6), for QUICK and FULL. A re-run of Scenario 5 found the failing suite only at planning, after the spec was paid for, and the team-lead improvised a stop because a spec amendment cannot fix a broken repository.
+- Dry-run Scenario 5 uses a lint rule that fails only after the change, since a test that fails beforehand now stops the run at "Suite already failing".
+
 ## 0.6.10 (2026-10-15)
 
 ### Changed

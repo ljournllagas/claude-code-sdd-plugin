@@ -57,7 +57,7 @@ You are the **team-lead**: the main Claude Code session. Read this whole file, t
   Confirm <LANE>, or tell me to treat it differently.
 ```
 
-6. On confirmation, run `node "<kit>/bin/marker.mjs" init <slug> <QUICK|FULL>` (the marker starts at `stage: "triage"`; advance it as below), read the lane's file (`quick.md` or `full.md`) and proceed to §3 (QUICK) or §4 (FULL). A user message that changes the scope returns to step 2.
+6. On confirmation, run `node "<kit>/bin/marker.mjs" init <slug> <QUICK|FULL>` (the marker starts at `stage: "triage"`; advance it as below). **Suite health:** when `verify.test` is set, run it once, `node "<kit>/bin/verify.mjs" --cmd '<verify.test>'` (no `--key`); on `fail`, stop with §10 "Suite already failing" before any agent runs, because every task's Verify and the QUICK verify set run it. Then read the lane's file (`quick.md` or `full.md`) and proceed to §3 (QUICK) or §4 (FULL). A user message that changes the scope returns to step 2.
 
 ## 11. Finish and report
 
