@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.7 (2026-10-15)
+
+Fixes from the seventh developer-agent audit.
+
+### Added
+- `verify.mjs --expect-tests`: a test command that exits 0 having run no test (a filter or path that selects none) fails with `ran no tests`. The runners' "none ran" signs live in `config/detectors.json` (`noTestsRan`). The developer uses it for `Red:`, `Green:` and QUICK narrowed tests; such a run is a design gap, never a pass.
+- Team-lead: on `TASK-DONE` it reads the report's `Red:` line and records `tasks.<id>.red_proven` in the marker when Red failed as required. A `skipped` Red on a non-FF dispatch is noted as `Red skipped without cause`. Done tasks with a `Red:` line and no proven Red go to the code reviewer as `Red unproven:`, and the reviewer checks that their tests would fail without the change.
+
+### Changed
+- Developer FF dispatch: when the task's test code is not in place yet, the developer writes it and runs `Red:` once (not a round) before touching the implementation, reporting `failed: …` only when it fails for the stated reason, else `not proven (FF: <why>)`. Red is waived only when the tests were already present.
+- Developer: at most one diagnostic run per command between two code changes; the `Runner:` re-run after a passing diagnostic run is final. The pre-return review runs at most twice without a round in between.
+- Developer return: `TASK-BLOCKED`'s `Notes:` carries the QUICK paths outside the expected paths and QUICK reuse, as `TASK-DONE`'s does.
+
 ## 0.6.6 (2026-10-15)
 
 Fixes from the sixth developer-agent audit.

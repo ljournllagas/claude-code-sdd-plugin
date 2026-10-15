@@ -104,6 +104,7 @@ Artifact: <spec or plan path; code: the diff file or file-list path under .sdd/r
 [Spec: <spec path>]                       (plan mode; code mode in FULL)
 [Plan: <manifest path>]                   (code mode in FULL)
 [Goal: <the QUICK brief's goal>]          (code mode in QUICK)
+[Red unproven: <task IDs>]                (code mode in FULL, when any: §7.3 step 6)
 [Spec size: light]                        (spec mode, when §2 step 4 chose light)
 [Scope: outline | slice <n> | plan]        (plan mode only)
 Round: <k> of <cfg.limits.reviewRounds>

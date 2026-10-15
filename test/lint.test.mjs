@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.6');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.7');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -490,7 +490,7 @@ test('v0.6.2 developer: lane-wide minimum change, fixed tests, start snapshot, b
   const tokens = [
     'Do not special-case test inputs or hardcode expected values', 'or after 5 rounds in total', 'formatter or auto-fix (`--fix`, `--write`) unless the task names it',
     'Never change the task\'s test code after you wrote it', 'If the task\'s test code is not in its test files yet, write it as given first',
-    '**start snapshot**', 'Never touch a path outside the Files list that is in the start snapshot', 'Leave no trace', 'skipped (<Check | Manual | FF DISPATCH | QUICK>)',
+    '**start snapshot**', 'Never touch a path outside the Files list that is in the start snapshot', 'Leave no trace', 'skipped (<Check | Manual | FF DISPATCH: tests already present | QUICK>)',
     'Manual — left to the user', 'paths undone outside the Files list',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
@@ -534,7 +534,7 @@ test('v0.6.5 developer: Manual tasks, CONTEXT.md terms, exact stop rules, projec
   const t = read('agents/developer.md');
   const tokens = [
     '**Manual task**', 'a Manual task: none — Manual', 'read it first and name domain concepts with its terms',
-    'stop after 3 rounds in a row', 'at most once per failure', 'never `cd` away from it',
+    'stop after 3 rounds in a row', 'at most once per command between two code changes', 'never `cd` away from it',
     'run Red once more (not a round), which must now fail for the stated reason', 'if that run fails, fixing it is a round',
     'A `create` path that already exists when you start is a design gap', 'confirm the diff calls each `Reuse:` item',
     'existing code that duplicates what a `Reuse: none` task builds', 'when the tool cannot narrow, run none',
@@ -566,4 +566,23 @@ test('v0.6.6 developer: non-interactive commands, binding names, QUICK reuse, pr
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
   assert.equal(JSON.parse(read('config/sdd.config.default.json')).verify.timeoutMinutes, 30);
   assert.ok('timeoutMinutes' in JSON.parse(read('config/sdd.config.schema.json')).properties.verify.properties);
+});
+
+// ---------- v0.6.7: developer audit fixes ----------
+test('v0.6.7 developer: Red proven or flagged, no-test runs fail, bounded diagnostics, full BLOCKED notes', () => {
+  const t = read('agents/developer.md');
+  const tokens = [
+    'add `--expect-tests` before `--cmd`', 'a `Red:` or `Green:` that ran no tests',
+    'run `Red:` once (not a round) before you change any implementation', 'not proven (FF: <why>)',
+    'Red is waived only when the test code was already in place',
+    'and that run is the result', 'do this step at most twice',
+    'paths undone outside the Files list, QUICK paths outside the expected paths, QUICK reuse, or none>\n```\n\nKeep it short',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  assert.ok(read('playbook/execution.md').includes('marker.mjs set tasks.<key>.red_proven=true'));
+  assert.ok(read('playbook/full.md').includes('`Red unproven:` with the IDs of the done tasks'));
+  assert.ok(read('playbook/team-lead.md').includes('[Red unproven: <task IDs>]'));
+  assert.ok(read('agents/reviewer.md').includes('A `Red unproven: <task IDs>` line names tasks'));
+  const rules = JSON.parse(read('config/detectors.json')).noTestsRan;
+  assert.ok(rules.match.length > 0 && rules.units.length > 0);
 });

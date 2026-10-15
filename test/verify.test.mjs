@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { run, verifyCommands, quickCommands, tail, runCommand } from '../bin/verify.mjs';
+import { run, verifyCommands, quickCommands, tail, runCommand, ranNoTests } from '../bin/verify.mjs';
 import { run as marker } from '../bin/marker.mjs';
 import { mkProject, planFiles } from './helpers/project.mjs';
 
@@ -108,6 +108,38 @@ test('the developer\'s runner (--cmd, no --key) skips out-of-band verification; 
   writeFileSync(join(d, 'sdd.config.json'), JSON.stringify({ version: 1, verify: { external: true } }));
   assert.equal(run(['--cmd', node('process.exit(0)')], d).stdout, 'pass: 1 command(s)\n');
   assert.match(run(['--key', 'T1', '--cmd', node('process.exit(0)')], d).stdout, /^fail: external verification is required/);
+});
+
+test('runs that selected no test are recognised across runners', () => {
+  for (const out of [
+    'No tests found, exiting with code 0',
+    'No test files found, exiting with code 0',
+    'collected 0 items\n\n===== no tests ran in 0.01s =====',
+    '# tests 0\n# pass 0',
+    '\n  0 passing (2ms)\n',
+    '0 examples, 0 failures',
+    'ok  \tex.com/a\t0.1s [no tests to run]\nok  \tex.com/b\t0.1s [no tests to run]',
+    '?   \tex.com/a\t[no test files]',
+    'running 0 tests\n\ntest result: ok. 0 passed\n   Doc-tests x\nrunning 0 tests',
+  ]) assert.equal(ranNoTests(out), true, out);
+  for (const out of [
+    '# tests 3\n# pass 3',
+    '  5 passing (8ms)',
+    'Tests:       2 passed, 2 total',
+    'ok  \tex.com/a\t0.1s\nok  \tex.com/b\t0.1s [no tests to run]',
+    'running 2 tests\ntest a ... ok\n   Doc-tests x\nrunning 0 tests',
+    '',
+  ]) assert.equal(ranNoTests(out), false, out);
+});
+
+test('--expect-tests fails a passing command that ran no test; without it the command passes', () => {
+  const d = mkProject();
+  const none = node("console.log('# tests 0')");
+  assert.equal(run(['--cmd', none], d).stdout, 'pass: 1 command(s)\n');
+  const r = run(['--expect-tests', '--cmd', none], d);
+  assert.equal(r.code, 1);
+  assert.match(r.stdout, /^fail: .* ran no tests\n# tests 0\n$/);
+  assert.equal(run(['--expect-tests', '--cmd', node("console.log('# tests 2')")], d).stdout, 'pass: 1 command(s)\n');
 });
 
 test('bad invocations exit 2', () => {

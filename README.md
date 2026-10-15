@@ -11,7 +11,7 @@ You approve the spec and the plan before any code is written. Claude does not mo
 
 The plugin is language-agnostic. It does not care if your project is JavaScript, Python, C# or something else. You tell it your build and test commands once, and it uses those.
 
-Current version: **0.6.0** (see [CHANGELOG.md](CHANGELOG.md)).
+Current version: **0.6.7** (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Why use it
 
@@ -238,7 +238,7 @@ These are in [bin/](bin/) and need only Node. The team-lead calls them, but you 
 | `route.mjs` | The router. Takes a task card, prints a tier decision. `--check-config` validates your config. |
 | `card.mjs` | Builds the card from the plan (or from flags), routes it, and records the attempt in the run file. |
 | `marker.mjs` | Reads and updates the run file `.sdd/active.json` one field at a time; records the git baseline; runs the dirty-files pre-flight. |
-| `verify.mjs` | Runs a verify set and prints one line. Writes the last 40 lines of a failure to a file. Enforces out-of-band verification. |
+| `verify.mjs` | Runs a verify set and prints one line. Writes the last 40 lines of a failure to a file. Enforces out-of-band verification. With `--expect-tests` (the developer's Red and Green runs), fails a test command that ran no test. |
 | `task-done.mjs` | Finishes a task: marks it done, stops on stray edits, commits only its files, logs the outcome. |
 | `detect.mjs` | Proposes verify commands from the manifests in your repo. |
 | `index.mjs` | Rebuilds `docs/sdd/index.md` from artifact frontmatter. |

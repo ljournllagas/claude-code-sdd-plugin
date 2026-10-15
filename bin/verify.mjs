@@ -31,6 +31,20 @@ export function tail(text, n = TAIL_LINES) {
   return lines.slice(-n).join('\n');
 }
 
+// A test command that exits 0 having run no test (a filter or path that selects none) proves nothing.
+// The runners' "none ran" signs live in config/detectors.json: any `match` line, or a `units` rule whose
+// every unit line (one per package or test binary) is a zero line.
+const NO_TESTS = JSON.parse(readFileSync(new URL('../config/detectors.json', import.meta.url), 'utf8')).noTestsRan;
+export function ranNoTests(output, rules = NO_TESTS) {
+  const lines = String(output).split(/\r?\n/);
+  const any = (re) => lines.some((l) => new RegExp(re).test(l));
+  if (rules.match.some(any)) return true;
+  return rules.units.some(({ line, zero }) => {
+    const units = lines.filter((l) => new RegExp(line).test(l));
+    return units.length > 0 && units.every((l) => new RegExp(zero).test(l));
+  });
+}
+
 const shell = process.platform === 'win32' ? true : (existsSync('/bin/bash') ? '/bin/bash' : true);
 
 // Runs one command from `cwd` with stdout and stderr into one file, so their order is kept. Never throws.
@@ -48,7 +62,7 @@ export function runCommand(command, cwd, timeoutMs = 30 * 60e3) {
   return { ok: !r.error && code === 0, code, output: why ? `${output}\n${why}` : output };
 }
 
-const USAGE = 'usage: verify.mjs [--key <task key>] (--cmd "<command>"... | --manifest <plan> --task <T-id> | --quick)';
+const USAGE = 'usage: verify.mjs [--key <task key>] [--expect-tests] (--cmd "<command>"... | --manifest <plan> --task <T-id> | --quick)';
 
 export function run(argv, cwd = process.cwd(), exec = runCommand) {
   const out = [];
@@ -58,6 +72,7 @@ export function run(argv, cwd = process.cwd(), exec = runCommand) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--quick') flags.quick = true;
+    else if (a === '--expect-tests') flags.expectTests = true;
     else if (['--cmd', '--key', '--manifest', '--task'].includes(a) && i + 1 < argv.length) {
       if (a === '--cmd') flags.cmd.push(argv[++i]); else flags[a.slice(2)] = argv[++i];
     } else { err.push(USAGE); return done(2); }
@@ -100,6 +115,7 @@ export function run(argv, cwd = process.cwd(), exec = runCommand) {
   for (const c of commands) {
     const r = exec(c, cwd, timeoutMs);
     if (!r.ok) return fail(`${c} (exit ${r.code})`, r.output);
+    if (flags.expectTests && ranNoTests(r.output)) return fail(`${c} ran no tests`, r.output);
   }
   let note = '';
   if (ext.state === 'waived') note = ` · external: waived (${ext.waiverFile})`;

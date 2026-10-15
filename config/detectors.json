@@ -1,4 +1,12 @@
 {
+  "noTestsRan": {
+    "match": ["No tests found", "No test files found", "no tests ran", "collected 0 items", "No tests executed",
+              "No test matches the given testcase filter", "^\\s*0 examples, 0 failures", "^\\s*0 passing\\b", "^# tests 0$"],
+    "units": [
+      { "line": "^(ok|\\?)\\s", "zero": "\\[no test(s to run| files)\\]" },
+      { "line": "^running \\d+ tests?$", "zero": "^running 0 tests?$" }
+    ]
+  },
   "skipDirs": ["node_modules", "vendor", "target", "obj", "bin", "dist", "build", "out"],
   "detectors": [
     { "id": "package.json", "files": ["package.json"], "verify": {
