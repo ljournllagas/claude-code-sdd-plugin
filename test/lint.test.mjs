@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.7');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.8');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -537,7 +537,7 @@ test('v0.6.5 developer: Manual tasks, CONTEXT.md terms, exact stop rules, projec
     'stop after 3 rounds in a row', 'at most once per command between two code changes', 'never `cd` away from it',
     'run Red once more (not a round), which must now fail for the stated reason', 'if that run fails, fixing it is a round',
     'A `create` path that already exists when you start is a design gap', 'confirm the diff calls each `Reuse:` item',
-    'existing code that duplicates what a `Reuse: none` task builds', 'when the tool cannot narrow, run none',
+    'existing code that duplicates what a `Reuse: none` task builds', 'when the brief has no such line, run none',
     'outside the brief\'s expected paths under `Notes:`', 'Change no build, CI or tool configuration or lockfile unless the goal names it',
     'Each command line reports that command\'s last run',
   ];
@@ -585,4 +585,19 @@ test('v0.6.7 developer: Red proven or flagged, no-test runs fail, bounded diagno
   assert.ok(read('agents/reviewer.md').includes('A `Red unproven: <task IDs>` line names tasks'));
   const rules = JSON.parse(read('config/detectors.json')).noTestsRan;
   assert.ok(rules.match.length > 0 && rules.units.length > 0);
+});
+
+// ---------- v0.6.8: fixes from the first real dry run ----------
+test('v0.6.8: QUICK narrowing from the brief, relative paths, reported diff review, template-only dispatches, verbatim records', () => {
+  const dev = read('agents/developer.md');
+  for (const tok of [
+    "the brief's `Narrow tests:` template", 'as paths relative to the project root',
+    'This review is required for every task, however small', 'Diff review: <git diff read, nothing removed',
+  ]) assert.ok(dev.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  const lead = read('playbook/team-lead.md');
+  assert.ok(lead.includes('[Narrow tests: <cfg.verify.testOne>]'));
+  assert.ok(lead.includes('A dispatch prompt holds only its template\'s lines'));
+  assert.ok(read('playbook/quick.md').includes('the reviewer\'s whole return, copied unchanged'));
+  assert.ok(read('playbook/full.md').includes('the reviewer\'s whole return, copied unchanged'));
+  assert.ok(read('agents/planner.md').includes('`Verify:` is the exception: it uses only the Verify block\'s commands'));
 });

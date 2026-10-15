@@ -1,6 +1,6 @@
 # SDD dry-run scenarios (walk once per Kit release on the real harness)
 
-Setup for every scenario: copy `test/fixtures/repo-js` (or `repo-py`) to a fresh temp directory, `git init` it and make one commit (except Scenario 6), start Claude Code there with the Kit loaded (`claude --plugin-dir <path to sdd>`), run `/sdd-init`, accept the detected commands, and write `{"router": {"enabled": false}}` merged into `sdd.config.json` so routing uses the built-in table (a stubbed router; real TypeSafe is exercised by `test/route.test.mjs`). Tick each line only when you saw it happen. Record the date, Claude Code version and any deviation at the bottom.
+Setup for every scenario: copy `test/fixtures/repo-js` (or `repo-py`) to a fresh temp directory, `git init` it and make one commit (except Scenario 6), start Claude Code there with the Kit loaded (`claude --plugin-dir <path to sdd>`; headless, type `/sdd:sdd` for `/sdd`), run `/sdd-init`, accept the detected commands, and write `{"router": {"enabled": false}}` merged into `sdd.config.json` so routing uses the built-in table (a stubbed router; real TypeSafe is exercised by `test/route.test.mjs`). Tick each line only when you saw it happen. Record the date, Claude Code version and any deviation at the bottom.
 
 ## Scenario 1 — QUICK happy path
 
@@ -38,7 +38,7 @@ Make the reviewer find a blocker that the author cannot fix: after the spec is d
 
 ## Scenario 5 — Task escalation to human
 
-Set `limits.verifyFailuresPerTier` to 1 and `verify.test` to a command that always fails: `node -e "process.exit(1)"` (so no task can ever pass verification). Run a small FULL request.
+Set `limits.verifyFailuresPerTier` to 1, keep the detected `verify.test`, and commit a test file that always fails (repo-js: `always-fails.test.js` with `import { test } from 'node:test'; test('always fails', () => { throw new Error('planted'); });`), so every task's Verify (the whole suite) fails while its targeted Red and Green behave normally. Run a small FULL request; do not mention the planted test.
 - [ ] First failure: failure file `.sdd/review/<slug>-<task>.fail.txt` written (last 40 lines); the next dispatch is an FF dispatch (prompt names the failure file and the paths already edited) at the tier the Router returned; `.sdd/decisions.jsonl` shows `source: "escalation"` and `tasks[<id>]` shows `last_tier` moving up with `failures_at_last_tier` reset to 0.
 - [ ] After the failure at `deep`: a decision with `human: true`; the session stops offering exactly I fixed it / Retry at deep with guidance / Skip / Abort.
 - [ ] Choosing **Skip** lists the leftover edits and offers Keep / Revert; nothing is restored without your confirmation; dependent tasks are marked `[!] blocked`.

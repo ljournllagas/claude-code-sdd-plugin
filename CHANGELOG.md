@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.8 (2026-10-15)
+
+Fixes from the first real dry run (Scenarios 1, 2, 3 and 5 on Claude Code 2.1.300; results in `test/fixtures/dry-run-scenarios.md`).
+
+### Added
+- `plan.mjs check`: a pending task's `Verify:` line may run only commands from the manifest's Verify block. A targeted `testOne` command there meant the whole suite never ran in a FULL run (the planner used one to sidestep a failing suite). Red and Green may still be targeted.
+- `marker.mjs baseline` refuses before stage `executing` (FULL) or `quick-dev` (QUICK), and never re-records `base`. A team-lead had recorded both at triage, which would put commits made during spec work into the run diff.
+
+### Changed
+- QUICK brief: a `Narrow tests:` line carries `verify.testOne`; the developer narrows its tests with it, and with no such line runs none. A QUICK developer had run the whole suite.
+- Developer return: `Files changed`/`Files created` are paths relative to the project root; `TASK-DONE` carries a `Diff review:` line, and the step-6 diff review is required for every task (no developer had run it).
+- Team-lead: a dispatch prompt holds only its template's lines; no notes of its own (one had added a `Note:` steering a retry).
+- Team-lead: a code-review record holds the reviewer's whole return, copied unchanged (a QUICK record had been paraphrased).
+- Planner and plan template: `Verify:` uses only the Verify block's commands.
+- Dry-run Scenario 5 plants an always-failing test instead of a failing `verify.test`, which the planner could avoid. README: headless sessions need `/sdd:sdd`.
+
 ## 0.6.7 (2026-10-15)
 
 Fixes from the seventh developer-agent audit.

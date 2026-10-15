@@ -102,6 +102,7 @@ export function parseManifest(text) {
       files: [...m[6].matchAll(/`([^`]+)`/g)].map((x) => x[1]), summary: s ? s[1] : null,
     });
   }
+  const verifyBlock = sectionLines(lines, 'Verify block').flatMap((l) => [...l.matchAll(/`([^`]+)`/g)].map((x) => x[1].trim()));
   const matrix = [];
   for (const l of sectionLines(lines, 'Coverage matrix')) {
     const m = /^\|\s*(AC-\d+[a-z]?)\s*\|\s*(.*?)\s*\|\s*$/.exec(l);
@@ -113,7 +114,7 @@ export function parseManifest(text) {
     layout: fm.fields?.layout === 'split' ? 'split' : 'single',
     spec: specM ? specM[1] : null,
     count: countM ? Number(countM[1]) : null,
-    slices, index, badIndexLines, matrix,
+    slices, index, badIndexLines, matrix, verifyBlock,
   };
 }
 
@@ -248,6 +249,15 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
     if (!sameSet(p.files, e.files)) add(t.id, 'Files differ from the index');
     if ((p.routerSummary ?? '') !== (e.summary ?? '')) add(t.id, 'Router summary differs from the index summary');
     if (!p.hasVerify) add(t.id, 'no Verify: line');
+    // The per-task Verify is where the whole suite runs, so it takes the block's commands, never a targeted one.
+    // Only pending tasks: a finished task's line was written by an older Kit and has already run.
+    else if (t.marker === ' ' && !/^manual:/i.test(p.verify.trim())) {
+      const head = p.verify.split(/\s+(?:→|->)\s+/)[0];
+      const ticked = [...head.matchAll(/`([^`]+)`/g)].map((x) => x[1].trim());
+      for (const c of ticked.length ? ticked : [head.trim()]) {
+        if (!m.verifyBlock.includes(c)) add(t.id, `Verify runs \`${c}\`, which is not in the manifest's Verify block`);
+      }
+    }
     if (!p.reuse) add(t.id, 'no Reuse: line (or an empty one)');
     if (root !== null && t.marker === ' ') {
       const before = created.get(t.id);

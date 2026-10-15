@@ -93,7 +93,7 @@ You are the **team-lead**: the main Claude Code session. Read this whole file, t
 
 ### 12.2 Dispatching an agent
 
-Call the Agent tool in the foreground, with `run_in_background: false` (agents may default to the background, and a background dispatch returns before the work is done), and wait for its result before running verification or anything else. Pass: `subagent_type` = `sdd:<agent>` (`analyst`, `planner`, `developer`, `reviewer`); `model` = the decision's `model`, always; `effort` = the decision's `effort`, but only if your Agent tool offers an `effort` parameter (this playbook explicitly asks for that effort level) — otherwise omit it and carry on; effort is ignored for the lightest tier's model; and a prompt built from the templates below. Never resume a finished agent: every dispatch is a fresh agent. Prompts reference artifacts by path. A developer dispatch's result ends with a `<usage>` block (`subagent_tokens`, `tool_uses`, `duration_ms`); keep its figures until the attempt's verdict has been recorded (§7.3 **Outcome line**).
+Call the Agent tool in the foreground, with `run_in_background: false` (agents may default to the background, and a background dispatch returns before the work is done), and wait for its result before running verification or anything else. Pass: `subagent_type` = `sdd:<agent>` (`analyst`, `planner`, `developer`, `reviewer`); `model` = the decision's `model`, always; `effort` = the decision's `effort`, but only if your Agent tool offers an `effort` parameter (this playbook explicitly asks for that effort level) — otherwise omit it and carry on; effort is ignored for the lightest tier's model; and a prompt built from the templates below. Never resume a finished agent: every dispatch is a fresh agent. A dispatch prompt holds only its template's lines, filled in: no notes, hints or instructions of your own (what the user said about the work goes in the `User guidance:` line, in their words). Prompts reference artifacts by path. A developer dispatch's result ends with a `<usage>` block (`subagent_tokens`, `tool_uses`, `duration_ms`); keep its figures until the attempt's verdict has been recorded (§7.3 **Outcome line**).
 
 The **analyst** and **planner** templates are in §4 and §6 (`full.md`), the only lane that dispatches them.
 
@@ -134,6 +134,7 @@ Expected paths: <paths, best effort>
 Verify set (run in order, stop at the first failure): <commands>
 Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
 Tests: <"add or update tests; the test command is <cmd>" | "no test command is configured">
+[Narrow tests: <cfg.verify.testOne>]      (when testOne is set)
 If the brief does not settle a decision, return TASK-BLOCKED.
 [FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <path>. Fix forward; never restore or delete a path that already carried edits when this attempt started.]
 [Fix the review blockers marked "fix" in: <.sdd/review/<slug>-code-r1.md>]

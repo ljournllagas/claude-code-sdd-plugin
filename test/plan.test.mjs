@@ -76,6 +76,20 @@ function project({ tasks = TASKS, slices = SLICES, expanded = tasks.map((t) => t
 const check = (p, opts) => P.checkPlan(P.loadPlan(p.manifest), { sliceMax: 2, ...opts });
 
 // ---------- parsing ----------
+test('a task Verify line runs only the Verify block\'s commands; a targeted command or a Manual line is checked accordingly', () => {
+  const swap = (t, line) => taskFile(t).replace('Verify: node --test → expected: passes', line);
+  const p = project({ files: {
+    T1: swap(TASKS[0], 'Verify: `node --test test/a.test.js` → expected: passes'),
+    T2: swap(TASKS[1], 'Verify: `node --test` → expected: passes'),
+    T3: swap(TASKS[2], 'Verify: Manual: open the docs and read them'),
+  } });
+  assert.deepEqual(P.parseManifest(manifest()).verifyBlock, ['node --test']);
+  assert.deepEqual(check(p), ["T1: Verify runs `node --test test/a.test.js`, which is not in the manifest's Verify block"]);
+  const done = project({ files: { T1: taskFile(TASKS[0], { marker: '[x] done' }).replace('Verify: node --test →', 'Verify: node --test test/a.test.js →') } });
+  assert.deepEqual(check(done), [], 'a finished task is not re-checked');
+});
+
+
 test('parsePlanTasks reads id, title and marker (unchanged since v0.2)', () => {
   const text = ['### T1 — A   [x] done', '### T2 — B [with brackets]   [!] blocked', 'Not a heading: ### T9 — nope   [x] done', '### T3 — C [x]'].join('\n');
   assert.deepEqual(P.parsePlanTasks(text), [

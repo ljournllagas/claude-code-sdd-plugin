@@ -19,7 +19,7 @@ layout: split
 <!-- Copy the non-null commands from sdd.config.json `verify`, one per line, exactly:
 - build: `<command>`
 - test: `<command>`
-Every Red/Green/Verify command in a task must appear verbatim here (or be the task's own targeted test command built from the `testOne` template). -->
+Every Red/Green/Verify command in a task must appear verbatim here; only Red and Green may instead use the task's own targeted test command built from the `testOne` template. -->
 
 ## Accepted risks
 

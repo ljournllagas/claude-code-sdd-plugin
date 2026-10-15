@@ -15,6 +15,7 @@ const outcomes = (d) => {
 function started(files = {}) {
   const d = gitInit(mkProject({ ...planFiles(), ...files }));
   marker(['init', 's', 'FULL'], d);
+  marker(['set', 'stage=executing'], d);
   marker(['baseline'], d);
   marker(['set', `tasks.T1=${ROUTED}`], d);
   return d;

@@ -62,6 +62,7 @@ test('mutations without a marker, or malformed, fail clearly', () => {
 test('baseline records base and dirty paths, excluding run artifacts; none outside git', () => {
   const plain = mkProject();
   run(['init', 's', 'QUICK'], plain);
+  run(['set', 'stage=quick-dev'], plain);
   assert.equal(run(['baseline'], plain).code, 0);
   assert.equal(marker(plain).base, 'none');
   assert.deepEqual(marker(plain).dirty_at_start, []);
@@ -72,11 +73,27 @@ test('baseline records base and dirty paths, excluding run artifacts; none outsi
   writeFileSync(join(d, 'docs', 'sdd', 'specs', 's.md'), 'x\n');
   writeFileSync(join(d, 'new file.txt'), 'n\n');
   run(['init', 's', 'FULL'], d);
+  run(['set', 'stage=executing'], d);
   run(['baseline', '--dirty'], d);
   assert.equal(marker(d).base, null);
   assert.deepEqual(marker(d).dirty_at_start.sort(), ['new file.txt', 'src/a.js']);
   run(['baseline', '--base'], d);
   assert.match(marker(d).base, /^[0-9a-f]{40}$/);
+});
+
+test('baseline is recorded only at executing or quick-dev, and base only once', () => {
+  const d = gitInit(mkProject({ 'a.txt': 'a\n' }));
+  run(['init', 's', 'FULL'], d);
+  const early = run(['baseline', '--base'], d);
+  assert.equal(early.code, 1);
+  assert.match(early.stderr, /at stage executing or quick-dev, not triage/);
+  assert.equal(marker(d).base, null);
+  run(['set', 'stage=executing'], d);
+  assert.equal(run(['baseline'], d).code, 0);
+  const again = run(['baseline', '--base'], d);
+  assert.equal(again.code, 1);
+  assert.match(again.stderr, /never re-recorded/);
+  assert.equal(run(['baseline', '--dirty'], d).code, 0, 'dirty_at_start is re-recorded after a Ready pre-flight');
 });
 
 test('changed paths are relative to the project even below the repository root', () => {

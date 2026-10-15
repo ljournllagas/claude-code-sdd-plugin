@@ -175,6 +175,9 @@ export function run(argv, cwd = process.cwd()) {
       out.push(`${args[0]}: ${e.failures_at_last_tier} failure(s) at ${e.last_tier}`);
     } else if (cmd === 'baseline') {
       const both = !args.includes('--dirty') && !args.includes('--base');
+      // Recorded when execution starts, so edits and commits made during spec and plan work stay out of the run.
+      if (!['executing', 'quick-dev'].includes(m.stage)) { err.push(`marker.mjs: baseline is recorded at stage executing or quick-dev, not ${m.stage}`); return done(1); }
+      if ((both || args.includes('--base')) && m.base !== null) { err.push(`marker.mjs: base is already recorded (${m.base}) and is never re-recorded`); return done(1); }
       const repo = isGitRepo(cwd);
       if (both || args.includes('--dirty')) m.dirty_at_start = repo ? changedNonArtifacts(cwd, cfg) : [];
       if (both || args.includes('--base')) {
