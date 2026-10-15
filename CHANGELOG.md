@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.10 (2026-10-15)
+
+### Changed
+- Developer: the pre-return diff self-review is dropped. In three real runs and two wordings no developer ran `git diff` before returning. Step 6 keeps the `git status` check against the start snapshot (stray paths are undone or blocked, which developers did run every time), followed by one re-run when a path was undone.
+- Code reviewer: also flags reformatting, unrelated edits, and names or comments that break the repository's conventions or `CONTEXT.md` terms (a should-fix), the checks the developer's self-review used to carry.
+
 ## 0.6.9 (2026-10-15)
 
 Fixes from re-running dry-run Scenarios 1 and 5 on 0.6.8, and Scenario 6 (QUICK half).

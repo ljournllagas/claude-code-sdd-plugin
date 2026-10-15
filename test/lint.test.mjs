@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.9');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.10');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -504,7 +504,7 @@ test('v0.6.3 developer: defined rounds, diagnostic run, guidance scope, diff che
   const t = read('agents/developer.md');
   const tokens = [
     'A `User guidance:` line narrows how you do the work, never what it covers', 'for a review fix, the path of the review record',
-    'this diagnostic run is not a round', 'A round is one code change followed by the `Green:`', 'Then read its diff part',
+    'this diagnostic run is not a round', 'A round is one code change followed by the `Green:`',
     'narrowed or not', 'fixes only the blockers marked `fix`', '(after creating the empty shell <path>)', "<the runner's line>",
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
@@ -517,7 +517,7 @@ test('v0.6.3 developer: defined rounds, diagnostic run, guidance scope, diff che
 test('v0.6.4 developer: fresh pass after the last change, additive tests, QUICK self-check, evidence-based file lists', () => {
   const t = read('agents/developer.md');
   const tokens = [
-    'that run came after your last code change', 'If this step changed any file, run `Green:` (or `Check:`) and the step-4 commands once more',
+    'that run came after your last code change', 'If this step undid a path, run `Green:` (or `Check:`) and the step-4 commands once more',
     'if the task needs that change, return `TASK-BLOCKED: design-gap` naming the path; otherwise undo it',
     'add the tests and keep the existing ones', 'record the start snapshot before you edit anything', 'in place of the Files list',
     'Take `Files changed` and `Files created` from the step-6 comparison', 'Rounds: <n>', 'quick-fix (a review fix)',
@@ -536,7 +536,7 @@ test('v0.6.5 developer: Manual tasks, CONTEXT.md terms, exact stop rules, projec
     '**Manual task**', 'a Manual task: none — Manual', 'read it first and name domain concepts with its terms',
     'stop after 3 rounds in a row', 'at most once per command between two code changes', 'never `cd` away from it',
     'run Red once more (not a round), which must now fail for the stated reason', 'if that run fails, fixing it is a round',
-    'A `create` path that already exists when you start is a design gap', 'confirm the diff calls each `Reuse:` item',
+    'A `create` path that already exists when you start is a design gap',
     'existing code that duplicates what a `Reuse: none` task builds', 'when the brief has no such line, run none',
     'outside the brief\'s expected paths under `Notes:`', 'Change no build, CI or tool configuration or lockfile unless the goal names it',
     'Each command line reports that command\'s last run',
@@ -559,7 +559,6 @@ test('v0.6.6 developer: non-interactive commands, binding names, QUICK reuse, pr
     'is new, even when it is installed as a dependency of another one',
     'A brief has no `Reuse:` line, so before you write new logic, search the repository',
     '`TASK-BLOCKED: environment — pre-existing failure: <command>`',
-    'any abstraction the recipe does not name', 'that its names and comments follow the **Always** rules',
     'including one that already carried edits when the attempt started',
     'Red: <as in TASK-DONE, or not run>', 'Green: <as in TASK-DONE, or not run>', 'Verify: <as in TASK-DONE, or not run>',
   ];
@@ -575,7 +574,7 @@ test('v0.6.7 developer: Red proven or flagged, no-test runs fail, bounded diagno
     'add `--expect-tests` before `--cmd`', 'a `Red:` or `Green:` that ran no tests',
     'run `Red:` once (not a round) before you change any implementation', 'not proven (FF: <why>)',
     'Red is waived only when the test code was already in place',
-    'and that run is the result', 'do this step at most twice',
+    'and that run is the result',
     'paths undone outside the Files list, QUICK paths outside the expected paths, QUICK reuse, or none>\n```\n\nKeep it short',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
@@ -592,7 +591,6 @@ test('v0.6.8: QUICK narrowing from the brief, relative paths, reported diff revi
   const dev = read('agents/developer.md');
   for (const tok of [
     "the brief's `Narrow tests:` template", 'as paths relative to the project root',
-    'required for every task, however small',
   ]) assert.ok(dev.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
   const lead = read('playbook/team-lead.md');
   assert.ok(lead.includes('[Narrow tests: <cfg.verify.testOne>]'));
@@ -605,7 +603,6 @@ test('v0.6.8: QUICK narrowing from the brief, relative paths, reported diff revi
 // ---------- v0.6.9: fixes from the dry-run re-run ----------
 test('v0.6.9: one closing status-and-diff command, no Diff review claim, suite health stop, no invented stops, passing Verify', () => {
   const dev = read('agents/developer.md');
-  assert.ok(dev.includes('run `git status --porcelain --untracked-files=all; git diff -- <Files paths>` as one command'));
   assert.ok(!dev.includes('Diff review:'), 'a self-reported review line invites unbacked claims');
   const exec = read('playbook/execution.md');
   assert.ok(exec.includes('**Suite health.**'));
@@ -616,4 +613,12 @@ test('v0.6.9: one closing status-and-diff command, no Diff review claim, suite h
   assert.equal(lead.split('`<command>` stays a placeholder').length - 1, 2);
   assert.ok(read('agents/planner.md').includes('every `Green:` and `Verify:` expects a pass') || read('agents/planner.md').includes('Every `Green:` and `Verify:` expects a pass'));
   assert.ok(read('agents/reviewer.md').includes('one that expects a failure is a blocker'));
+});
+
+// ---------- v0.6.10: developer self-review dropped ----------
+test('v0.6.10: the developer keeps the stray-path check but no diff self-review; the code reviewer covers naming and stray edits', () => {
+  const dev = read('agents/developer.md');
+  assert.ok(!/git diff/.test(dev), 'developer.md no longer asks for a git diff review');
+  assert.ok(dev.includes('compare `git status --porcelain --untracked-files=all` with the start snapshot and the Files list'));
+  assert.ok(read('agents/reviewer.md').includes("names and comments that break the repository's conventions"));
 });
