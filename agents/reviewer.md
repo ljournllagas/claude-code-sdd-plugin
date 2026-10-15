@@ -33,7 +33,7 @@ Central question: *could a skilled engineer who has never seen this codebase exe
 - each task's `Tests (complete)` actually prove the ACs it cites (an AC whose tests would pass with the behaviour missing is a blocker)
 - scope creep; placeholders ("TBD", "handle edge cases", "similar to T3", tests described but not written)
 - name/signature consistency (`Consumes` equals the dependency's `Produces`); exact names and types
-- each task changes one behaviour; command strings appear verbatim in the Verify block; independently verifiable end state
+- each task changes one behaviour; command strings appear verbatim in the Verify block; every `Green:` and `Verify:` expects a pass (one that expects a failure is a blocker); independently verifiable end state
 - Check:/Manual: as the template describes when no test command; the manifest `description` is one accurate sentence
 - `Reuse:` quality: `plan.mjs check` already rejects a task with no `Reuse:` line, so judge what the line names. A Recipe reimplementing an existing helper is a should-fix; blocker only when an existing identical-behaviour symbol can be cited by path and name (same inputs, outputs, error behaviour)
 

@@ -121,7 +121,7 @@ Task file: <path to the task's T<n>.md>      (split plan)
 Task: <T-id>]                             (legacy single-file plan, instead of the Task file line)
 Verify block:
 - <key>: `<command>`
-Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
+Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'   (copy this line as it stands: `<command>` stays a placeholder)
 [FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <.sdd/review/<slug>-<task>.fail.txt>. The Red check is waived. Fix forward; never restore or delete a path that already carried edits when this attempt started.]
 [User guidance: <text>]
 ```
@@ -131,8 +131,8 @@ Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
 QUICK brief.
 Goal: <request restated>
 Expected paths: <paths, best effort>
-Verify set (run in order, stop at the first failure): <commands>
-Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'
+Verify set (the team-lead runs it after you; you run only its non-test commands): <commands>
+Runner: node "<kit>/bin/verify.mjs" --cmd '<command>'   (copy this line as it stands: `<command>` stays a placeholder)
 Tests: <"add or update tests; the test command is <cmd>" | "no test command is configured">
 [Narrow tests: <cfg.verify.testOne>]      (when testOne is set)
 If the brief does not settle a decision, return TASK-BLOCKED.

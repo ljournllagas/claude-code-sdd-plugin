@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.9 (2026-10-15)
+
+Fixes from re-running dry-run Scenarios 1 and 5 on 0.6.8, and Scenario 6 (QUICK half).
+
+### Added
+- Team-lead pre-flight **Suite health** (§7.1 step 2b): before the first task, the Verify block's `test` command runs once; if it already fails, the run stops at the new §10 "Suite already failing" (I fixed it / Abort). A suite failing before any change had made every task fail, and the plan had planned around it.
+
+### Changed
+- Developer: the closing check is one command, `git status --porcelain --untracked-files=all; git diff -- <Files paths>`, required for every task. The 0.6.8 `Diff review:` report line is removed: in both re-runs the developer reported "git diff read" without running it.
+- QUICK brief: the Verify set line says the team-lead runs it and the developer runs only its non-test commands; both Runner lines keep `<command>` as a placeholder. Developers had run the whole suite from a filled-in Runner line.
+- Team-lead: never stops on its own judgment that a retry cannot help; only the routing decision's `human` flag stops a task, with the options §10 lists. One had invented a five-option stop instead of dispatching the routed retry.
+- Planner and plan review: every `Green:` and `Verify:` expects a pass; a test already failing outside the task is a `SPEC-GAP`, and a Verify expecting a failure is a blocker.
+
 ## 0.6.8 (2026-10-15)
 
 Fixes from the first real dry run (Scenarios 1, 2, 3 and 5 on Claude Code 2.1.300; results in `test/fixtures/dry-run-scenarios.md`).

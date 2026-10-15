@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.8');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.9');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -504,7 +504,7 @@ test('v0.6.3 developer: defined rounds, diagnostic run, guidance scope, diff che
   const t = read('agents/developer.md');
   const tokens = [
     'A `User guidance:` line narrows how you do the work, never what it covers', 'for a review fix, the path of the review record',
-    'this diagnostic run is not a round', 'A round is one code change followed by the `Green:`', 'Then read `git diff -- <Files paths>`',
+    'this diagnostic run is not a round', 'A round is one code change followed by the `Green:`', 'Then read its diff part',
     'narrowed or not', 'fixes only the blockers marked `fix`', '(after creating the empty shell <path>)', "<the runner's line>",
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
@@ -592,7 +592,7 @@ test('v0.6.8: QUICK narrowing from the brief, relative paths, reported diff revi
   const dev = read('agents/developer.md');
   for (const tok of [
     "the brief's `Narrow tests:` template", 'as paths relative to the project root',
-    'This review is required for every task, however small', 'Diff review: <git diff read, nothing removed',
+    'required for every task, however small',
   ]) assert.ok(dev.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
   const lead = read('playbook/team-lead.md');
   assert.ok(lead.includes('[Narrow tests: <cfg.verify.testOne>]'));
@@ -600,4 +600,20 @@ test('v0.6.8: QUICK narrowing from the brief, relative paths, reported diff revi
   assert.ok(read('playbook/quick.md').includes('the reviewer\'s whole return, copied unchanged'));
   assert.ok(read('playbook/full.md').includes('the reviewer\'s whole return, copied unchanged'));
   assert.ok(read('agents/planner.md').includes('`Verify:` is the exception: it uses only the Verify block\'s commands'));
+});
+
+// ---------- v0.6.9: fixes from the dry-run re-run ----------
+test('v0.6.9: one closing status-and-diff command, no Diff review claim, suite health stop, no invented stops, passing Verify', () => {
+  const dev = read('agents/developer.md');
+  assert.ok(dev.includes('run `git status --porcelain --untracked-files=all; git diff -- <Files paths>` as one command'));
+  assert.ok(!dev.includes('Diff review:'), 'a self-reported review line invites unbacked claims');
+  const exec = read('playbook/execution.md');
+  assert.ok(exec.includes('**Suite health.**'));
+  assert.ok(exec.includes('Never stop on your own judgment that a retry cannot help'));
+  assert.ok(read('playbook/stops.md').includes('**Suite already failing**'));
+  const lead = read('playbook/team-lead.md');
+  assert.ok(lead.includes('Verify set (the team-lead runs it after you; you run only its non-test commands)'));
+  assert.equal(lead.split('`<command>` stays a placeholder').length - 1, 2);
+  assert.ok(read('agents/planner.md').includes('every `Green:` and `Verify:` expects a pass') || read('agents/planner.md').includes('Every `Green:` and `Verify:` expects a pass'));
+  assert.ok(read('agents/reviewer.md').includes('one that expects a failure is a blocker'));
 });

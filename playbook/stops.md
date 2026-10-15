@@ -41,6 +41,10 @@ At every stop: show the stop reason and the options below — only these — and
 - **Revert** → after the user confirms the exact list: restore modified files to `HEAD` (`git checkout HEAD -- <paths>`, for modified files only); unstage added files (`git rm --cached -- <paths>`) and then delete them; delete the untracked ones. This is the only time you restore or delete files.
 In a non-git project the set cannot be computed: list only the developer's last report, and Revert is unavailable. Afterwards continue with the originating stop (Skip → amend or abort; Abort → end the run; design gap → amendment; QUICK exhaustion → report; successful task → run `task-done.mjs` again to commit it, then take the next task).
 
+**Suite already failing** (§7.1 step 2b: the Verify block's `test` command fails before any task ran). Show the runner's failing lines.
+- **I fixed it** → run the command again; on `pass` continue with §7.1 step 3, on `fail` show this stop again.
+- **Abort.** (There is no "proceed anyway": every task's Verify would fail.)
+
 **Dirty-files pre-flight** (a task's Files path has uncommitted changes).
 - **Ready** → the user has committed or stashed them; re-check and continue (re-recording `dirty_at_start` only at the first entry to `executing`, §7.1).
 - **Abort.** (There is no "proceed anyway".)

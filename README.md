@@ -11,7 +11,7 @@ You approve the spec and the plan before any code is written. Claude does not mo
 
 The plugin is language-agnostic. It does not care if your project is JavaScript, Python, C# or something else. You tell it your build and test commands once, and it uses those.
 
-Current version: **0.6.8** (see [CHANGELOG.md](CHANGELOG.md)).
+Current version: **0.6.9** (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Why use it
 
@@ -275,7 +275,7 @@ At the time of writing: 314 tests. On Linux 312 pass and 2 Windows-only tests ar
 
 ## Known limits
 
-- The helper scripts, the guard and the router are covered by automated tests. The team-lead playbook is written instructions for Claude, so it can't be unit-tested. Scenarios 1, 2, 3 and 5 of the fourteen in [test/fixtures/dry-run-scenarios.md](test/fixtures/dry-run-scenarios.md) have been walked on a real session (results at the end of that file); the others have not.
+- The helper scripts, the guard and the router are covered by automated tests. The team-lead playbook is written instructions for Claude, so it can't be unit-tested. Scenarios 1, 2, 3, 5 and part of 6 of the fourteen in [test/fixtures/dry-run-scenarios.md](test/fixtures/dry-run-scenarios.md) have been walked on a real session (results at the end of that file); the others have not.
 - Some messages from the plugin say `/sdd` and `/sdd-init` without the namespace. Read them as `/sdd:sdd` and `/sdd:sdd-init`. In headless mode (`claude -p`), the bare `/sdd` is not found: use `/sdd:sdd`.
 - Specs and plans from version 0.1.0 need a frontmatter block added by hand. Until then they show up as "Unindexed". Plans from 0.2.0 keep working without changes.
 - There is no license file in this repo yet.
