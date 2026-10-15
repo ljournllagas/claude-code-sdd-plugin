@@ -32,6 +32,20 @@ test('a command runs from the project directory with stdout and stderr in order'
   assert.equal(r.output.trim(), 'true\nerr\nout');
 });
 
+test('a command that outlives its timeout is killed and fails', () => {
+  const r = runCommand(node('setTimeout(() => {}, 10000)'), mkProject(), 300);
+  assert.equal(r.ok, false);
+  assert.match(r.output, /timed out after 0 s/);
+});
+
+test('run passes verify.timeoutMinutes to each command', () => {
+  const d = mkProject({ 'sdd.config.json': JSON.stringify({ verify: { timeoutMinutes: 2 } }) });
+  const seen = [];
+  const r = run(['--cmd', 'a', '--cmd', 'b'], d, (c, cwd, ms) => { seen.push(ms); return { ok: true, code: 0, output: '' }; });
+  assert.equal(r.code, 0);
+  assert.deepEqual(seen, [120000, 120000]);
+});
+
 test('a pass prints one line; a failure writes the last 40 lines to the task\'s failure file', () => {
   const d = mkProject();
   marker(['init', '20261015-demo', 'FULL'], d);

@@ -20,7 +20,7 @@
     "pii":      { "globs": ["**/*user*/**","**/*customer*/**","**/*profile*"],                        "minTier":"standard", "lens":"security" }
   },
   "riskKeywords": ["delete","drop ","truncate","purge","migrat","password","secret","token","credential","payment","refund","invoice","ssn","gdpr","encrypt"],
-  "verify": { "build": null, "test": null, "lint": null, "typecheck": null, "format": null, "testOne": null, "external": false, "waiverFile": ".sdd/verify-waived.txt", "externalCommand": null },
+  "verify": { "build": null, "test": null, "lint": null, "typecheck": null, "format": null, "testOne": null, "external": false, "waiverFile": ".sdd/verify-waived.txt", "externalCommand": null, "timeoutMinutes": 30 },
   "paths":  { "specs": "docs/sdd/specs", "plans": "docs/sdd/plans", "log": ".sdd/decisions.jsonl", "active": ".sdd/active.json", "index": "docs/sdd/index.md" },
   "limits": { "reviewRounds": 3, "verifyFailuresPerTier": 2, "reviewFixRounds": 2, "openQuestions": 8, "questionRounds": 2, "sliceMaxTasks": 12, "expandBatchTasks": 4, "maxAcceptanceCriteria": 20, "maxTaskFileLines": 600 },
   "guard":  { "ttlHours": 12 }

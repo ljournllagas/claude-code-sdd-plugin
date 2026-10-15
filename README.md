@@ -199,7 +199,7 @@ The hook fails open. If its input or your config is unreadable, it lets the edit
 | `router` | TypeSafe on/off, endpoint, key variable, timeout, confidence thresholds. |
 | `stageFloors`, `fallbackTiers` | The lowest tier each stage may use, and the tier used when the router is down. |
 | `riskPaths`, `riskKeywords` | What counts as risky work, which forces FULL. |
-| `verify` | Your build, test, lint, typecheck, format and single-test commands. Also out-of-band verification (see below). |
+| `verify` | Your build, test, lint, typecheck, format and single-test commands, and `timeoutMinutes` (default 30), after which `verify.mjs` stops a command and reports it as failed. Also out-of-band verification (see below). |
 | `paths` | Where specs, plans, the log, the run marker and the index live. |
 | `limits` | Review rounds, failures per tier, open questions, slice size, acceptance-criteria cap, task file length. |
 | `guard.ttlHours` | How long a run marker stays live. |

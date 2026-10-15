@@ -54,7 +54,8 @@
         "format": { "type": ["string", "null"] }, "testOne": { "type": ["string", "null"] },
         "external": { "type": "boolean" },
         "waiverFile": { "type": ["string", "null"] },
-        "externalCommand": { "type": ["string", "null"] }
+        "externalCommand": { "type": ["string", "null"] },
+        "timeoutMinutes": { "$ref": "#/definitions/posInt" }
       }
     },
     "paths": {

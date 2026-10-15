@@ -34,16 +34,18 @@ export function tail(text, n = TAIL_LINES) {
 const shell = process.platform === 'win32' ? true : (existsSync('/bin/bash') ? '/bin/bash' : true);
 
 // Runs one command from `cwd` with stdout and stderr into one file, so their order is kept. Never throws.
-export function runCommand(command, cwd) {
+// A command still running after `timeoutMs` (a watch mode, a prompt) is killed and fails, so no caller hangs.
+export function runCommand(command, cwd, timeoutMs = 30 * 60e3) {
   const dir = mkdtempSync(join(tmpdir(), 'sdd-verify-'));
   const file = join(dir, 'out.txt');
   const fd = openSync(file, 'w');
   let r;
-  try { r = spawnSync(command, { cwd, shell, stdio: ['ignore', fd, fd] }); } finally { closeSync(fd); }
+  try { r = spawnSync(command, { cwd, shell, stdio: ['ignore', fd, fd], timeout: timeoutMs }); } finally { closeSync(fd); }
   const output = readFileSync(file, 'utf8');
   rmSync(dir, { recursive: true, force: true });
   const code = r.status ?? 1;
-  return { ok: !r.error && code === 0, code, output: r.error ? `${output}\n${r.error.message}` : output };
+  const why = r.error?.code === 'ETIMEDOUT' ? `timed out after ${Math.round(timeoutMs / 1000)} s` : r.error?.message;
+  return { ok: !r.error && code === 0, code, output: why ? `${output}\n${why}` : output };
 }
 
 const USAGE = 'usage: verify.mjs [--key <task key>] (--cmd "<command>"... | --manifest <plan> --task <T-id> | --quick)';
@@ -94,15 +96,16 @@ export function run(argv, cwd = process.cwd(), exec = runCommand) {
   // Plain --cmd with no --key is the developer's runner: out-of-band verification is the team-lead's gate, not its.
   const ext = flags.cmd.length > 0 && !flags.key ? { state: 'off' } : externalState(cfg.verify, cwd);
   if (commands.length === 0 && ext.state === 'off') { out.push('empty: no verify command is configured'); return done(3); }
+  const timeoutMs = cfg.verify.timeoutMinutes * 60e3;
   for (const c of commands) {
-    const r = exec(c, cwd);
+    const r = exec(c, cwd, timeoutMs);
     if (!r.ok) return fail(`${c} (exit ${r.code})`, r.output);
   }
   let note = '';
   if (ext.state === 'waived') note = ` · external: waived (${ext.waiverFile})`;
   else if (ext.state === 'missing') return fail('external verification is required', `verify.external is true: create ${ext.waiverFile} recording the human-run result, or set verify.externalCommand`);
   else if (ext.state === 'command') {
-    const r = exec(ext.command, cwd);
+    const r = exec(ext.command, cwd, timeoutMs);
     if (!r.ok) return fail(`external: ${ext.command} (exit ${r.code})`, r.output);
     note = ' · external: passed';
   }

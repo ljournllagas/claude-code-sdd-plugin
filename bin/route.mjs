@@ -117,6 +117,7 @@ export function validateConfig(cfg) {
     if (typeof cfg.verify.external !== 'boolean') err('verify.external', 'must be true or false');
     if (!(cfg.verify.waiverFile === null || typeof cfg.verify.waiverFile === 'string')) err('verify.waiverFile', 'must be a string or null');
     if (!(cfg.verify.externalCommand === null || typeof cfg.verify.externalCommand === 'string')) err('verify.externalCommand', 'must be a string or null');
+    if (!isPosInt(cfg.verify.timeoutMinutes)) err('verify.timeoutMinutes', 'must be a positive integer');
   }
 
   if (!isPlainObject(cfg.paths)) err('paths', 'must be an object');

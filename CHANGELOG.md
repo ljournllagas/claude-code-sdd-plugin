@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.6 (2026-10-15)
+
+Fixes from the sixth developer-agent audit.
+
+### Added
+- `verify.timeoutMinutes` (default 30): `verify.mjs` stops a command that runs longer and reports it as failed, so a watch mode or a prompt no longer hangs a developer or the team-lead.
+
+### Changed
+- Developer: every command runs non-interactively (no watch mode, dev server or prompt); the one diagnostic run keeps only its last 200 lines.
+- Developer: the names and signatures the task gives (`symbol:`, `Consumes:`, `Produces:`) are binding; when naming sources disagree, the task wins, then `CONTEXT.md` for domain concepts, then the surrounding idiom; "no comment by default" yields to a repository that documents every symbol of that kind. The pre-return diff review also checks names, comments and abstractions the recipe does not name.
+- Developer QUICK: a brief has no `Reuse:` line, so the developer searches for existing code, a standard-library feature or a declared dependency before writing new logic, and names what it reused under `Notes:`.
+- Developer: a dependency the project's manifest does not declare is new, even when installed transitively.
+- Developer: a required command that was already failing on code outside the Files list is not fixed; it returns `TASK-BLOCKED: environment — pre-existing failure: <command>`.
+- Developer return: `TASK-BLOCKED` carries `Red:`, `Green:` and `Verify:` lines (`not run` when a command did not run); in an FF dispatch `Files changed` lists every Files path that differs from the last commit, including those that already carried edits.
+
 ## 0.6.5 (2026-10-15)
 
 Fixes from the fifth developer-agent audit.

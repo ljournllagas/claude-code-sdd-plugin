@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.5');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.6');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -547,4 +547,23 @@ test('v0.6.5 developer: Manual tasks, CONTEXT.md terms, exact stop rules, projec
     assert.ok(s.includes('write no `Check:` line'), `${f} defines a Manual task as one with no Check: line`);
     assert.ok(!s.includes('or `Manual:` steps when none exist'), `${f} no longer puts Manual steps in place of Red/Green`);
   }
+});
+
+// ---------- v0.6.6: developer audit fixes ----------
+test('v0.6.6 developer: non-interactive commands, binding names, QUICK reuse, pre-existing failures, full BLOCKED report', () => {
+  const t = read('agents/developer.md');
+  const tokens = [
+    'Run every command non-interactively', '`tail -n 200`', '`verify.timeoutMinutes`',
+    'Use the names and signatures the task gives', 'the task\'s names win, then `CONTEXT.md` terms',
+    'unless the surrounding code documents every symbol of that kind',
+    'is new, even when it is installed as a dependency of another one',
+    'A brief has no `Reuse:` line, so before you write new logic, search the repository',
+    '`TASK-BLOCKED: environment — pre-existing failure: <command>`',
+    'any abstraction the recipe does not name', 'that its names and comments follow the **Always** rules',
+    'including one that already carried edits when the attempt started',
+    'Red: <as in TASK-DONE, or not run>', 'Green: <as in TASK-DONE, or not run>', 'Verify: <as in TASK-DONE, or not run>',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  assert.equal(JSON.parse(read('config/sdd.config.default.json')).verify.timeoutMinutes, 30);
+  assert.ok('timeoutMinutes' in JSON.parse(read('config/sdd.config.schema.json')).properties.verify.properties);
 });
