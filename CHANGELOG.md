@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.3 (2026-10-15)
+
+Fixes from the third developer-agent audit.
+
+### Changed
+- Developer: a round is defined (one code change and the `Green:`/`Check:` run); one diagnostic re-run for more output is allowed and is not a round, which removes the contradiction with "re-run only after a change"; a flaky command is judged by its last run and named under `Notes:`.
+- Developer: `TASK-DONE` needs every command step 4 requires to pass on its last run (not only the commands it chose to run); a narrowed form of the `test` command is also left to the team-lead.
+- Developer: a `User guidance:` line narrows how the task is done, never its scope; the QUICK review-fix dispatch fixes only the blockers marked `fix`, under the FF rules.
+- Developer: before returning it reads `git diff` of its Files and removes lines the task does not need; the snapshot rule names paths outside the Files list, so it no longer reads as forbidding fix-forward edits.
+- Developer return: `TASK-BLOCKED` gains a `Notes:` line; Green/Check/Verify carry the runner's line; QUICK fills the Green slot with its narrowed tests; the Red line notes an empty shell created before the second run. The dependency rule is stated once.
+
 ## 0.6.2 (2026-10-15)
 
 Fixes from the developer-agent re-audit, plus the anti-hardcoding rule.

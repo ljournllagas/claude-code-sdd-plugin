@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.2');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.3');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -471,7 +471,7 @@ test('v0.6 config: the final code review never routes below standard', () => {
 test('v0.6.1 developer: Red evidence, green-only TASK-DONE, bounded re-runs, scope self-check, files on a block', () => {
   const t = read('agents/developer.md');
   const tokens = [
-    'fails for **another reason**', 'Return `TASK-DONE` only when every command you ran passed', 'stop after 3 rounds', 'flaky, not passing', 'Notes:',
+    'fails for **another reason**', 'Return `TASK-DONE` only when every command this step requires passed', 'stop after 3 rounds', 'flaky: judge it by its last run', 'Notes:',
     'Commands write files too', 'Before you return', 'a `Reuse:` helper that is missing or does not fit', 'no reformatting or reordering',
     'failed: <the line showing the stated reason>', 'Evidence:', 'naming, style and idiom',
   ];
@@ -490,11 +490,25 @@ test('v0.6.2 developer: lane-wide minimum change, fixed tests, start snapshot, b
   const tokens = [
     'Do not special-case test inputs or hardcode expected values', 'or after 5 rounds in total', 'formatter or auto-fix (`--fix`, `--write`) unless the task names it',
     'Never change the task\'s test code after you wrote it', 'If the task\'s test code is not in its test files yet, write it as given first',
-    '**start snapshot**', 'Never touch a path that is in the start snapshot', 'Leave no trace', 'skipped (<Check | FF DISPATCH | QUICK>)',
+    '**start snapshot**', 'Never touch a path outside the Files list that is in the start snapshot', 'Leave no trace', 'skipped (<Check | FF DISPATCH | QUICK>)',
     'Manual — left to the user', 'paths undone outside the Files list',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
   assert.ok(!t.includes('files you did not create in this attempt'), 'FF protects paths edited before the attempt, not only files the developer did not create');
   assert.ok(!playbook().includes('files you did not create in this attempt'), 'the FF dispatch line agrees with the developer prompt');
   assert.match(t, /^description: Executes exactly one SDD plan task with test-first discipline \(or one QUICK brief\)/m);
+});
+
+// ---------- v0.6.3: developer audit fixes ----------
+test('v0.6.3 developer: defined rounds, diagnostic run, guidance scope, diff check, Notes on a block', () => {
+  const t = read('agents/developer.md');
+  const tokens = [
+    'A `User guidance:` line narrows how you do the work, never what it covers', 'for a review fix, the path of the review record',
+    'this diagnostic run is not a round', 'A round is one code change followed by the `Green:`', 'Then read `git diff -- <Files paths>`',
+    'narrowed or not', 'fixes only the blockers marked `fix`', '(after creating the empty shell <path>)', "<the runner's line>",
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  const blocked = t.slice(t.indexOf('TASK-BLOCKED: <class> — <reason>\nFiles changed:'));
+  assert.ok(blocked.includes('Notes:'), 'a TASK-BLOCKED return can name undone paths and flaky commands');
+  assert.equal((t.match(/add no dependency/g) ?? []).length, 0, 'the dependency rule lives once, in Smallest change');
 });
