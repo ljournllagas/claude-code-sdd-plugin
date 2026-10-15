@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.4 (2026-10-15)
+
+Fixes from the fourth developer-agent audit.
+
+### Changed
+- Developer: `TASK-DONE` needs every required command to have passed after the last code change; when the pre-return check undoes a path or trims the diff, `Green:`/`Check:` and the step-4 commands run once more (not a round). The check decides whether the task needs a stray path before undoing it.
+- Developer: in a test file the task modifies, the given tests are added and the existing ones kept (replaced only when the task says so); the planner states which.
+- Developer: QUICK records the start snapshot and runs the pre-return check against the paths it changed on purpose, so files a command created are undone and the reported list is exact.
+- Developer return: `Files changed`/`Files created` come from the git comparison (QUICK too), else from the developer's own edits; both returns carry a `Rounds:` line; `TASK-DONE` names `quick-fix` for a review fix.
+- Developer: the `Reuse:` rule covers existing code, standard-library features and dependencies, not only helpers; "the same failure" is the same command failing on the same first error line; a diagnostic run never decides a result (a pass there is confirmed by one more `Runner:` run); a non-git project reviews the files it created or changed.
+- Team-lead: the QUICK dispatch template has a `[User guidance:]` slot, as the FULL one does.
+
 ## 0.6.3 (2026-10-15)
 
 Fixes from the third developer-agent audit.

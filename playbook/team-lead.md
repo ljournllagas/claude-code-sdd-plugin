@@ -136,6 +136,7 @@ Tests: <"add or update tests; the test command is <cmd>" | "no test command is c
 If the brief does not settle a decision, return TASK-BLOCKED.
 [FF DISPATCH. Paths that already carry edits: <paths>. Failure evidence: <path>. Fix forward; never restore or delete a path that already carried edits when this attempt started.]
 [Fix the review blockers marked "fix" in: <.sdd/review/<slug>-code-r1.md>]
+[User guidance: <text>]
 ```
 
 ### 12.3 Running verification

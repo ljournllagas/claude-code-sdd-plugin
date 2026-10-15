@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.3');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.4');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -472,7 +472,7 @@ test('v0.6.1 developer: Red evidence, green-only TASK-DONE, bounded re-runs, sco
   const t = read('agents/developer.md');
   const tokens = [
     'fails for **another reason**', 'Return `TASK-DONE` only when every command this step requires passed', 'stop after 3 rounds', 'flaky: judge it by its last run', 'Notes:',
-    'Commands write files too', 'Before you return', 'a `Reuse:` helper that is missing or does not fit', 'no reformatting or reordering',
+    'Commands write files too', 'Before you return', 'a `Reuse:` item that is missing or does not fit', 'no reformatting or reordering',
     'failed: <the line showing the stated reason>', 'Evidence:', 'naming, style and idiom',
   ];
   for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
@@ -511,4 +511,20 @@ test('v0.6.3 developer: defined rounds, diagnostic run, guidance scope, diff che
   const blocked = t.slice(t.indexOf('TASK-BLOCKED: <class> — <reason>\nFiles changed:'));
   assert.ok(blocked.includes('Notes:'), 'a TASK-BLOCKED return can name undone paths and flaky commands');
   assert.equal((t.match(/add no dependency/g) ?? []).length, 0, 'the dependency rule lives once, in Smallest change');
+});
+
+// ---------- v0.6.4: developer audit fixes ----------
+test('v0.6.4 developer: fresh pass after the last change, additive tests, QUICK self-check, evidence-based file lists', () => {
+  const t = read('agents/developer.md');
+  const tokens = [
+    'that run came after your last code change', 'If this step changed any file, run `Green:` (or `Check:`) and the step-4 commands once more',
+    'if the task needs that change, return `TASK-BLOCKED: design-gap` naming the path; otherwise undo it',
+    'add the tests and keep the existing ones', 'record the start snapshot before you edit anything', 'in place of the Files list',
+    'Take `Files changed` and `Files created` from the step-6 comparison', 'Rounds: <n>', 'quick-fix (a review fix)',
+    'names existing code, a standard-library feature or a dependency', 'the same command failing on the same first error line', 'never decides a result',
+  ];
+  for (const tok of tokens) assert.ok(t.includes(tok), `developer.md must contain ${JSON.stringify(tok)}`);
+  assert.ok(read('agents/planner.md').includes('For a test file the task modifies, give only the tests to add'), 'the planner says whether given tests add or replace');
+  const quick = playbook().slice(playbook().indexOf('**developer — QUICK**'));
+  assert.ok(quick.slice(0, quick.indexOf('### 12.3')).includes('[User guidance: <text>]'), 'the QUICK dispatch template carries User guidance');
 });

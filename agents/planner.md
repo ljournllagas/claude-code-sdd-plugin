@@ -50,7 +50,7 @@ Write the task files named by `Tasks:`, in the order given, each from the task t
    - `Consumes:` restates, as full signatures/types, anything it needs from another task or from existing code (with the defining task ID or `existing: path`).
    - `Produces:` gives full signatures/types, errors and side effects.
    - `Reuse:` names what the Recipe calls instead of building: existing code (path and symbol), a standard-library or native-platform feature, or an already-installed dependency. Before writing the Recipe, search for each of these (Glob/Grep over the repository, the language's standard library, the project's installed dependencies), and let the Recipe call what you find. If nothing fits, write `none — searched <what you searched>, nothing to reuse`. Never introduce a dependency the project does not already have unless the spec itself names it.
-   - `Tests (complete):` is the full test code in the project's own language and test framework, as discovered from the repository. The tests are the executable contract.
+   - `Tests (complete):` is the full test code in the project's own language and test framework, as discovered from the repository. The tests are the executable contract. For a test file the task modifies, give only the tests to add, and say so when they replace existing tests.
    - `Recipe:` is numbered prose; pseudo-steps only for non-obvious logic; **no full implementation bodies**.
    - `Red:` and `Green:` are exact commands with the specific expected failure and success. `Verify:` is exact commands.
    - `Lenses:` only when a lens clearly applies: security, data, contract or performance.
