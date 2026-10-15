@@ -88,6 +88,14 @@ test('external verification: waived, by command, or missing', () => {
   assert.ok(existsSync(join(d, '.sdd', 'verify-waived.txt')));
 });
 
+test('the developer\'s runner (--cmd, no --key) skips out-of-band verification; a keyed run keeps it', () => {
+  const d = mkProject();
+  marker(['init', 's', 'FULL'], d);
+  writeFileSync(join(d, 'sdd.config.json'), JSON.stringify({ version: 1, verify: { external: true } }));
+  assert.equal(run(['--cmd', node('process.exit(0)')], d).stdout, 'pass: 1 command(s)\n');
+  assert.match(run(['--key', 'T1', '--cmd', node('process.exit(0)')], d).stdout, /^fail: external verification is required/);
+});
+
 test('bad invocations exit 2', () => {
   const d = mkProject(planFiles());
   assert.equal(run([], d).code, 2);

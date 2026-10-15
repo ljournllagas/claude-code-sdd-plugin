@@ -91,7 +91,8 @@ export function run(argv, cwd = process.cwd(), exec = runCommand) {
     return done(1);
   };
 
-  const ext = externalState(cfg.verify, cwd);
+  // Plain --cmd with no --key is the developer's runner: out-of-band verification is the team-lead's gate, not its.
+  const ext = flags.cmd.length > 0 && !flags.key ? { state: 'off' } : externalState(cfg.verify, cwd);
   if (commands.length === 0 && ext.state === 'off') { out.push('empty: no verify command is configured'); return done(3); }
   for (const c of commands) {
     const r = exec(c, cwd);
