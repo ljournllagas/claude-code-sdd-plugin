@@ -11,7 +11,7 @@ You approve the spec and the plan before any code is written. Claude does not mo
 
 The plugin is language-agnostic. It does not care if your project is JavaScript, Python, C# or something else. You tell it your build and test commands once, and it uses those.
 
-Current version: **0.6.13** (see [CHANGELOG.md](CHANGELOG.md)).
+Current version: **0.6.14** (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Why use it
 
@@ -242,6 +242,7 @@ These are in [bin/](bin/) and need only Node. The team-lead calls them, but you 
 | `task-done.mjs` | Finishes a task: marks it done, stops on stray edits, commits only its files, logs the outcome. |
 | `detect.mjs` | Proposes verify commands from the manifests in your repo. |
 | `index.mjs` | Rebuilds `docs/sdd/index.md` from artifact frontmatter. |
+| `status-edit.mjs` | Sets the `status:` of a spec or plan (frontmatter line only) and refreshes the Index. |
 | `plan.mjs` | Lists a plan's tasks and checks a plan mechanically (`tasks`, `check`; `--paths` also checks that files exist). |
 | `cite-check.mjs` | Checks a spec's header block and every `path:line` citation. |
 | `scope-check.mjs` | Rejects specs with too many acceptance criteria. |

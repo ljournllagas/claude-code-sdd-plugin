@@ -8,7 +8,7 @@ At every stop: show the stop reason and the options below — only these — and
 
 **Review stall or cap hit** (spec or plan). Show the remaining blockers verbatim.
 - **Direct** (the user gives guidance) → relay it to the author agent (routed) with the path of the record that stopped: it revises once per that guidance; then run exactly one extra review round (round k+1 of the same loop, the only round ever allowed beyond R); then go to the user-approval gate regardless of the result.
-- **Accept** → the author agent appends the open blockers verbatim under the artifact's `## Accepted risks` section; proceed to the user-approval gate.
+- **Accept** → the author agent appends the open blockers verbatim under the artifact's `## Accepted risks` section; proceed to the user-approval gate. Give the author each blocker's bullet copied character for character from the latest record's Blockers section: no added words, no summary, no text from other records.
 - **Reject as out of scope** → add the blocker to the rejected list only (write the next record N with the header `# Loop <j> · user rejection`, where j is the loop that stopped, the blocker verbatim, a `## Dispositions` section containing `rejected: out of scope (user)`, and the last line `Exit: new loop`); a plan-loop rejection never edits the approved spec; a spec-loop rejection also has the analyst add it under `Out of scope`. Then re-run the review as a **new loop** (loop j+1, §5), starting at round 1.
 - **Abort** → end the run (§11 step 4).
 

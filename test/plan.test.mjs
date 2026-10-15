@@ -18,13 +18,13 @@ const TASKS = [
 ];
 const SLICES = [{ n: 1, title: 'Core' }, { n: 2, title: 'Docs' }];
 
-function manifest({ tasks = TASKS, slices = SLICES, count = tasks.length, layout = 'split', matrix, fm = {} } = {}) {
+function manifest({ tasks = TASKS, slices = SLICES, count = tasks.length, layout = 'split', matrix, fm = {}, verifyLines = ['- test: `node --test`'] } = {}) {
   const rows = matrix ?? [...new Set(tasks.flatMap((t) => t.acs))].map((ac) => `| ${ac} | ${tasks.filter((t) => t.acs.includes(ac)).map((t) => t.id).join(', ')} |`);
   const front = { type: 'plan', title: 'Demo', description: 'A demo plan.', status: 'draft', timestamp: '2026-10-13', layout, ...fm };
   return [
     '---', ...Object.entries(front).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}: ${v}`), '---', '',
     '# Demo — Plan', '', '**Spec:** docs/sdd/specs/demo.md', `**Task count:** ${count}`, '',
-    '## Verify block', '', '- test: `node --test`', '',
+    '## Verify block', '', ...verifyLines, '',
     '## Accepted risks', '', 'None', '',
     '## Coverage matrix', '', '| AC | Tasks |', '|---|---|', ...rows, '',
     '## Slices', '', ...slices.map((s) => `- Slice ${s.n} — ${s.title}`), '',
@@ -76,6 +76,18 @@ function project({ tasks = TASKS, slices = SLICES, expanded = tasks.map((t) => t
 const check = (p, opts) => P.checkPlan(P.loadPlan(p.manifest), { sliceMax: 2, ...opts });
 
 // ---------- parsing ----------
+test('with testOne configured, a pending task whose Red or Green is the full test command is a defect', () => {
+  const swap = (t, from, to) => taskFile(t).replace(from, to);
+  const verifyLines = ['- test: `node --test`', '- testOne: `node --test {target}`'];
+  const p = project({ manifestOpts: { verifyLines }, files: {
+    T1: swap(TASKS[0], 'Green:  node --test →', 'Green:  `node --test test/a.test.js` →').replace('Red:    node --test →', 'Red:    `node --test test/a.test.js` →'),
+    T2: swap(TASKS[1], 'Red:    node --test →', 'Red:    `node --test` →'),
+  } });
+  const full = (id, label) => `${id}: ${label} runs the full test command \`node --test\`; testOne is configured, so use the targeted command for the task's test file`;
+  assert.deepEqual(check(p, { scope: 'plan' }).filter((d) => /full test command/.test(d)), [full('T2', 'Red'), full('T2', 'Green'), full('T3', 'Red'), full('T3', 'Green')]);
+});
+
+
 test('a task Verify line runs only the Verify block\'s commands; a targeted command or a Manual line is checked accordingly', () => {
   const swap = (t, line) => taskFile(t).replace('Verify: node --test → expected: passes', line);
   const p = project({ files: {

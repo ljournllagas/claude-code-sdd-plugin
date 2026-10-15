@@ -16,9 +16,9 @@ Run: `/sdd add a farewell(name) function next to greet that returns "Goodbye, <n
 ## Scenario 2 — FULL happy path
 
 Run: `/sdd add a tally(names) function that returns a map of name to count, plus a CLI wrapper` (repo-py or repo-js).
-- [ ] Triage proposes FULL (or you raise it); you confirm.
+- [ ] Triage proposes FULL (or you raise it) and states the `files_touched` estimate and the spec size (`light` only for an estimate of 5 or fewer); you confirm.
 - [ ] Analyst writes `docs/sdd/specs/<slug>.md` with every template heading; open questions are shown to you with recommendations; you answer; the spec is revised.
-- [ ] Spec review runs (round lines `▸ spec review n/3 …`), exits clean or you resolve it; the session **stops** and asks for approval; saying nothing does not advance it.
+- [ ] Spec review runs (round lines `▸ spec review n/3 …`, the denominator is always `limits.reviewRounds`, also when the loop ends at round 2), exits clean or you resolve it; the session **stops** and asks for approval; saying nothing does not advance it.
 - [ ] After you approve, the spec's `status:` is `approved` and the planner writes `docs/sdd/plans/<slug>.md`; plan review runs; the session stops for plan approval.
 - [ ] After approval: plan `status: executing`; marker `base` is set once; each task: marker `in_progress` true then false, a fresh developer, the team-lead runs the Verify, the task heading becomes `[x] done`, a commit containing only that task's files.
 - [ ] One final `code` review over the run diff; report lists tasks, commits, routing summary; plan `status: done`; marker deleted.
@@ -32,9 +32,9 @@ Run: `/sdd rename the column "email" in the users table migration` (any repo; cr
 ## Scenario 4 — Review stall
 
 Make the reviewer find a blocker that the author cannot fix: after the spec is drafted, edit the spec by hand to add the contradictory requirement "AC-2: the output must be both empty and non-empty" (or ask the analyst for something impossible).
-- [ ] The same blocker is reported in two consecutive rounds; the loop exits as **stall** (not cap hit) before round 3.
+- [ ] After round 1 the team-lead runs round 2 without stopping or asking (it never judges the author's fix itself). The same blocker is reported in two consecutive rounds; the loop exits as **stall** (not cap hit) before round 3. To make the author unable to fix it, keep a watcher script that re-adds the line to the spec after every analyst revision (write its log outside the project).
 - [ ] The remaining blocker is shown verbatim and the options offered are exactly Direct / Accept / Reject as out of scope / Abort.
-- [ ] Choose **Accept**: the blocker appears verbatim under `Accepted risks` in the spec and the flow reaches the approval gate (it does not skip it).
+- [ ] Choose **Accept**: the blocker appears under `Accepted risks` in the spec character for character as in the record's Blockers section (no added words) and the flow reaches the approval gate (it does not skip it).
 
 ## Scenario 5 — Task escalation to human
 
@@ -55,12 +55,12 @@ Copy `repo-js` and do **not** run `git init`. Run `/sdd` with a small QUICK requ
 
 In a repo that already has a small helper (repo-js: `greet`), run `/sdd` for a FULL request that needs the same behaviour (e.g. a `greetAll(names)` that greets each name).
 - [ ] The plan's tasks each carry a non-empty `Reuse:` line; the greeting task names the existing helper (path and symbol), not a rewrite.
-- [ ] Delete the `Reuse:` line from one task by hand and re-run plan review: the reviewer reports it as a blocker (a missing `Reuse:` line).
-- [ ] Replace the Recipe of one task with one that reimplements the existing helper: the reviewer reports it as a should-fix (or a blocker only if it cites the existing symbol by path and it does the identical thing).
+- [ ] Delete the `Reuse:` line from one task by hand and ask for the plan review again: the team-lead's `plan.mjs check` stops first with `T<n>: no Reuse: line (or an empty one)` and no reviewer is dispatched (the mechanical check owns this defect; the reviewer is not asked to find it).
+- [ ] Replace the Recipe of one task with one that reimplements the existing helper: the reviewer reports it as a should-fix (or a blocker only if it cites the existing symbol by path and it does the identical thing; with a `Reuse:` line that names the helper, a Recipe that contradicts it is a blocker).
 
 ## Scenario 8 — Index read by the analyst (v0.2)
 
-In a project with an approved spec in `docs/sdd/specs/` (frontmatter present), run `/sdd` with a request that overlaps it.
+In a project with an approved spec in `docs/sdd/specs/` (frontmatter present), run `/sdd` with a request that really overlaps it: copy `test/fixtures/ff-escalation/docs/sdd/specs/demo-shout.md` there and ask for `shout(name)` plus a CLI. (A sibling such as `whisper` does not overlap, and the analyst correctly raises no overlap question.)
 - [ ] `docs/sdd/index.md` exists and lists the earlier spec under Specs with its status and description; it was regenerated before the analyst was dispatched.
 - [ ] The analyst's dispatch prompt carries an `Index:` line; the new spec cites the related earlier spec in Background and raises the overlap as an open question with a recommendation.
 - [ ] The analyst did not open unrelated specs, and did not edit `docs/sdd/index.md`.
@@ -95,7 +95,7 @@ Set `limits.sliceMaxTasks` to 2 and `limits.expandBatchTasks` to 1. Run `/sdd` w
 ## Scenario 12 — Legacy single-file plan (v0.3)
 
 In a project, put a plan written by v0.2 (frontmatter without `layout`, all tasks in one file, some marked `[x] done`) at `docs/sdd/plans/<slug>.md` and a marker `.sdd/active.json` with `stage: "executing"`, no `slice`, `plan` pointing at it.
-- [ ] `/sdd` offers to resume and continues at the next pending task exactly as v0.2 did: no outline stage, no `MODE:` line in any planner dispatch, developer prompts carry `Plan:` and `Task:`.
+- [ ] `/sdd` offers to resume and continues at the next pending task exactly as v0.2 did: no outline stage, no `MODE:` line in any planner dispatch, developer prompts carry `Plan:` and `Task:`. The code reviewer's prompt has no `Red unproven:` line for a task that was `[x] done` before the run (it has no `tasks` entry in the marker).
 - [ ] `/sdd-status` prints `task <done>/<total>` with no `slice` and no `expanded` text.
 - [ ] `node <kit>/bin/plan.mjs check docs/sdd/plans/<slug>.md --plan` prints `ok` (or the Task count / Verify defects, never a layout error).
 
@@ -107,7 +107,7 @@ Set `limits.verifyFailuresPerTier` to 1 and make one task's verify fail once (fo
 - [ ] The retry that passes: one line with `result: "pass"`, `first_attempt: false`, `source: "escalation"` (or the router's retry reason), whose `tier` equals the entry's `attempt_tier`.
 - [ ] A task that passes at once: `first_attempt: true`, `result: "pass"`, `source` and `reason` equal to the matching decision line; `duration_ms` and `agent_tokens` are numbers (or null if the dispatch result had no `<usage>` block).
 - [ ] `/sdd-status` prints an `Outcomes:` block whose first-attempt ratio counts only the `first_attempt: true` pass and fail lines.
-- [ ] Cut the session (close the window) after the failure file exists and before the retry is dispatched; resume with `/sdd`. Exactly one `fail` line exists for that attempt, and the retry's line has `first_attempt: false`.
+- [ ] Cut the session (kill the process) right after the `fail` line is appended; resume with `/sdd`. Exactly one `fail` line exists for that attempt, and the retry's line has `first_attempt: false`. (A cut earlier, between the failure file and the `fail` line, writes no `fail` line at all on resume, by the "never write a line for a verdict reached before the cut" rule of §7.3.)
 - [ ] Make a task hit `TASK-BLOCKED: design-gap`: one line with `result: "blocked"` was appended before the amendment began, and the replaced task's next line has `first_attempt: true`.
 - [ ] Exhaust a task at `deep` so the session stops with **Task needs a human**, choose **I fixed it** and let its Verify pass: no outcome line is written for that verify, and `/sdd-status`'s counts do not change.
 - [ ] A `Manual:` task (unset `verify.test` first): answering **Confirm done** or **Not done** writes no outcome line.
@@ -121,10 +121,11 @@ Run one QUICK request (Scenario 1) and one FULL request with two tasks (Scenario
 - [ ] Every verify ran through `bin/verify.mjs` and printed one line; no test-runner output appeared in the main session. A failing verify wrote `.sdd/review/<slug>-<task>.fail.txt` (at most 40 lines).
 - [ ] Each FULL task finished with one `bin/task-done.mjs` call: heading `[x] done`, one commit with only the task's files, one `pass` outcome line. Leave a stray file in the tree before a task finishes: the call exits 3 listing it, nothing is committed, and after **Keep** the same call commits.
 - [ ] The analyst prompt carried `Starting paths:`, `Spec size:` and `AC cap:`; a small request got a light spec. The planner prompt carried `Grounding notes:` and `Task file line cap:`, and `.sdd/<slug>.grounding.md` existed after the outline and was read by each EXPAND batch.
-- [ ] Each developer prompt carried a `Runner:` line; the developer did not run the full test suite (its report says `Verify: … left to the team-lead` for the `test` command). Its `Red:` and `Green:` runs used `--expect-tests`.
+- [ ] Each developer prompt carried a `Runner:` line; the developer did not run the full test suite (its report says `Verify: … left to the team-lead` for the `test` command): with `testOne` configured every pending task's `Red:` and `Green:` use the targeted command (`plan.mjs check` rejects the full `test` command there). Its `Red:` and `Green:` runs used `--expect-tests`.
 - [ ] After each `TASK-DONE` whose `Red:` line reads `→ failed:`, the marker has `tasks.<id>.red_proven: true`. Any done task with a `Red:` line and no `red_proven` appears on the code reviewer's `Red unproven:` line.
 - [ ] The final `code` reviewer prompt carried `Spec:` and `Plan:` (FULL) or `Goal:` (QUICK), and the decision log shows the `reviewer-code` stage at `standard` or above.
-- [ ] Resume a run after closing the window: `bin/doctor.mjs` ran first and its `issues:` lines (if any) were shown; then `resume.md` was read.
+- [ ] Resume a run after closing the window: `bin/doctor.mjs` ran first and its `issues:` lines (if any) were shown; the team-lead asked "Resume <slug> at <stage>?" and waited; then `resume.md` was read.
+- [ ] Every spec or plan `status:` change went through `bin/status-edit.mjs` (no Edit or `sed` of a frontmatter), one `status <file>: <old> → <new>` line each, and the Index was refreshed by it.
 
 ## Results
 

@@ -236,13 +236,13 @@ const EXPECTED_FILES = [
   'CHANGELOG.md',
   'README.md',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
-  'bin/card.mjs', 'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/marker.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status.mjs', 'bin/task-done.mjs', 'bin/verify-waiver.mjs', 'bin/verify.mjs',
+  'bin/card.mjs', 'bin/cite-check.mjs', 'bin/detect.mjs', 'bin/doctor.mjs', 'bin/index.mjs', 'bin/marker.mjs', 'bin/outcome.mjs', 'bin/plan.mjs', 'bin/route.mjs', 'bin/scope-check.mjs', 'bin/status-edit.mjs', 'bin/status.mjs', 'bin/task-done.mjs', 'bin/verify-waiver.mjs', 'bin/verify.mjs',
   'commands/sdd-init.md', 'commands/sdd-status.md', 'commands/sdd.md',
   'config/detectors.json', 'config/sdd.config.default.json', 'config/sdd.config.schema.json',
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/amendments.md', 'playbook/execution.md', 'playbook/full.md', 'playbook/legacy.md', 'playbook/quick.md', 'playbook/resume.md', 'playbook/stops.md', 'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json', 'templates/task.md',
-  'test/card.test.mjs', 'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/marker.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status.test.mjs', 'test/task-done.test.mjs', 'test/verify-waiver.test.mjs', 'test/verify.test.mjs',
+  'test/card.test.mjs', 'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/marker.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status-edit.test.mjs', 'test/status.test.mjs', 'test/task-done.test.mjs', 'test/verify-waiver.test.mjs', 'test/verify.test.mjs',
   'test/helpers/project.mjs', 'test/helpers/typesafe-mock.mjs',
 ];
 
@@ -250,7 +250,7 @@ test('AC-1: the file set is exactly the layout (fixtures excepted); plugin is na
   const files = walk(ROOT).filter((f) => !f.startsWith('test/fixtures/'));
   assert.deepEqual(files.sort(), [...EXPECTED_FILES].sort());
   assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).name, 'sdd');
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.13');
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.6.14');
 });
 
 // Toolchain names (AC-2). config/detectors.json is the only Kit file allowed to contain them.
@@ -439,7 +439,7 @@ test('v0.3 planner prompt: amendments keep the index in agreement; EXPAND copies
 test('v0.6 agent prompts: starting paths, light specs, caps, grounding notes, the runner, task-aware code review', () => {
   const must = {
     analyst: ['Starting paths:', 'Spec size: light', 'AC cap:', 'searching outward only'],
-    planner: ['Grounding notes:', 'Task file line cap:', 'append each new verified fact', 'in its own backticks', 'testOne` command for `Green:`'],
+    planner: ['Grounding notes:', 'Task file line cap:', 'append each new verified fact', 'in its own backticks', 'both use the targeted `testOne` command'],
     developer: ['Runner:', 'verify.mjs', '**except** the Verify block\'s `test` command', 'Start from the brief\'s expected paths', 'grows past 5 files'],
     reviewer: ['Review only these blocks', 'Scripts check the mechanics', 'Goal:', 'Plan:', 'an AC that no change implements is a blocker', 'Spec size: light'],
   };

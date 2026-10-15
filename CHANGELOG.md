@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.14 (2026-10-15)
+
+Fixes from the dry-run of Scenarios 4, 6–14 on 0.6.13.
+
+### Added
+- `bin/status-edit.mjs <file> <status>`: the one way to change a spec's or plan's `status:` (it edits the frontmatter line only, rejects a status the type does not have, refreshes the Index). The anchored Edit of §0 rule 1(a) produced no-op Edits, an Edit of a nonexistent file, and `sed` edits in three runs.
+- `plan.mjs check`: with `testOne` configured, a pending task whose `Red:` or `Green:` is the full `test` command is a defect. In four of six runs the planner wrote the full suite there and developers ran it.
+
+### Changed
+- Planner rule 4: with `testOne` configured, `Red:` and `Green:` both use the targeted command (was: prefer it for `Green:`).
+- §5 review loop: the team-lead never judges whether the author removed a blocker and never stops between rounds because one looks unchanged; the next round's report decides, so a persistent blocker ends as a stall (a run had invented a three-option stop after round 1). The round line always prints `k/<limits.reviewRounds>`.
+- §10 / §4: an Accept hands the author each blocker character for character from the record; the Accepted risks entry had carried added wording.
+- §2 triage: `Spec size: light` only for an estimate of 5 or fewer files (a run chose it for about 6); the estimate and size go in the triage line.
+- §1 step 4: with no argument and a live run, the team-lead asks "Resume <slug> at <stage>?" and stops (one run resumed without asking).
+- `Red unproven:` lists only done tasks that have a `tasks` entry in the marker, so a task finished before the run (a legacy plan) is not raised as a blocker.
+- `test/fixtures/dry-run-scenarios.md`: Scenarios 4, 7, 8, 13, 14 and 12 reworded to match (the mechanical `Reuse:` check precedes the reviewer; a real overlap for Scenario 8; the cut point of Scenario 13), results of the 0.6.13 run recorded.
+
 ## 0.6.13 (2026-10-15)
 
 ### Changed

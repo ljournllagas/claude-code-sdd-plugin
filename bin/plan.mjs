@@ -30,7 +30,7 @@ export function parsePlanTasks(text) {
 
 // One task block (heading plus fields). Lines inside a code fence are never read as fields.
 export function parseTaskBlock(text) {
-  const out = { id: null, title: null, marker: null, satisfies: [], dependsOn: [], routerSummary: null, files: [], hasVerify: false, verify: null, commit: null, reuse: null, ops: [] };
+  const out = { id: null, title: null, marker: null, satisfies: [], dependsOn: [], routerSummary: null, files: [], hasVerify: false, verify: null, red: null, green: null, commit: null, reuse: null, ops: [] };
   let inFence = false;
   let current = null;
   for (const line of toLines(text)) {
@@ -46,6 +46,8 @@ export function parseTaskBlock(text) {
       else if (current === 'Depends on') out.dependsOn = splitList(v);
       else if (current === 'Router summary') out.routerSummary = v;
       else if (current === 'Verify') { out.hasVerify = true; out.verify = v; }
+      else if (current === 'Red') out.red = v;
+      else if (current === 'Green') out.green = v;
       else if (current === 'Commit') out.commit = v;
       else if (current === 'Reuse') out.reuse = v;
       continue;
@@ -103,6 +105,11 @@ export function parseManifest(text) {
     });
   }
   const verifyBlock = sectionLines(lines, 'Verify block').flatMap((l) => [...l.matchAll(/`([^`]+)`/g)].map((x) => x[1].trim()));
+  const verifyKeys = {};
+  for (const l of sectionLines(lines, 'Verify block')) {
+    const k = /^\s*-\s*(\w+):\s*`([^`]+)`/.exec(l);
+    if (k) verifyKeys[k[1]] = k[2].trim();
+  }
   const matrix = [];
   for (const l of sectionLines(lines, 'Coverage matrix')) {
     const m = /^\|\s*(AC-\d+[a-z]?)\s*\|\s*(.*?)\s*\|\s*$/.exec(l);
@@ -114,7 +121,7 @@ export function parseManifest(text) {
     layout: fm.fields?.layout === 'split' ? 'split' : 'single',
     spec: specM ? specM[1] : null,
     count: countM ? Number(countM[1]) : null,
-    slices, index, badIndexLines, matrix, verifyBlock,
+    slices, index, badIndexLines, matrix, verifyBlock, verifyKeys,
   };
 }
 
@@ -256,6 +263,17 @@ export function checkPlan(plan, { scope = 'plan', slice = null, spec = null, sli
       const ticked = [...head.matchAll(/`([^`]+)`/g)].map((x) => x[1].trim());
       for (const c of ticked.length ? ticked : [head.trim()]) {
         if (!m.verifyBlock.includes(c)) add(t.id, `Verify runs \`${c}\`, which is not in the manifest's Verify block`);
+      }
+    }
+    // With a targeted `testOne` command configured, Red and Green use it: the whole suite runs once, at the team-lead's Verify.
+    if (t.marker === ' ' && m.verifyKeys.test && m.verifyKeys.testOne) {
+      for (const [label, line] of [['Red', p.red], ['Green', p.green]]) {
+        if (!line) continue;
+        const head = line.split(/\s+(?:→|->)\s+/)[0];
+        const ticked = [...head.matchAll(/`([^`]+)`/g)].map((x) => x[1].trim());
+        if ((ticked.length ? ticked : [head.trim()]).includes(m.verifyKeys.test)) {
+          add(t.id, `${label} runs the full test command \`${m.verifyKeys.test}\`; testOne is configured, so use the targeted command for the task's test file`);
+        }
       }
     }
     if (!p.reuse) add(t.id, 'no Reuse: line (or an empty one)');
