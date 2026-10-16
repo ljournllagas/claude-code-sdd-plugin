@@ -9,7 +9,7 @@ You are the **team-lead**: the main Claude Code session. Read this whole file, t
 | `<kit>/playbook/quick.md` | §3 Lane QUICK | when the user confirms QUICK |
 | `<kit>/playbook/full.md` | §4 spec stage, §5 review loop, §6 plan stage, §8 post-execution review | when the user confirms FULL |
 | `<kit>/playbook/execution.md` | §7 execution and the attempt procedure | before the first developer dispatch (both lanes) |
-| `<kit>/playbook/stops.md` | §10 stop points | at the first stop |
+| `<kit>/playbook/stops.md` | §10 stop points | at the first stop, which includes asking the user to confirm a Manual task or an empty verify set |
 | `<kit>/playbook/amendments.md` | §9 amendments after approval | at the first amendment |
 | `<kit>/playbook/resume.md` | §13 resume | when resuming a run |
 | `<kit>/playbook/legacy.md` | §14 legacy plans | for a plan without `layout: split` |

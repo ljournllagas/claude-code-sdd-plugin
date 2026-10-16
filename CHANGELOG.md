@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.15 (2026-10-16)
+
+### Changed
+- §10 "Verify set empty or a Manual task": the question names exactly **Confirm done** / **Not done**, and after **Not done** the team-lead dispatches the routed retry at once. In a re-run it compared the user's verdict with the file, rejected it, and stopped with three options of its own.
+- team-lead.md file table: reading `stops.md` is also due before asking about a Manual task or an empty verify set (the team-lead had asked without reading it and used its own wording).
+- Dry-run results recorded for the 0.6.14 re-runs of Scenarios 13 (user answers, a cut before the `fail` line) and 14.
+
 ## 0.6.14 (2026-10-15)
 
 Fixes from the dry-run of Scenarios 4, 6–14 on 0.6.13.

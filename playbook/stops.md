@@ -38,7 +38,7 @@ At every stop: show the stop reason and the options below — only these — and
 
 **Verify set empty (QUICK) or a Manual task (FULL).** Neither answer writes an **Outcome line** (§7.3: a user's answer never produces one).
 - **Confirm done** → treat it as a passed Verify (§7.3 step 7 Success) and continue.
-- **Not done** → a failed attempt; the user's stated reason is written to the failure file (`.sdd/review/<slug>-<task>.fail.txt`) as the evidence (§7.3 step 8).
+- **Not done** → a failed attempt; the user's stated reason is written to the failure file (`.sdd/review/<slug>-<task>.fail.txt`) as the evidence (§7.3 step 8). Ask with exactly these two options, named **Confirm done** and **Not done**. The user's verdict stands: never check it against the files, never ask what to change, and never stop again; go straight to §7.3 step 8 and dispatch the routed retry.
 
 **Leftover edits** (an attempt's edits remain and no further attempt follows: design-gap `TASK-BLOCKED`, Skip, Abort, QUICK ladder exhausted, or an unlisted path found after a successful task). The **leftover set** = the files `git status --porcelain --untracked-files=all` shows modified, added or untracked, minus `dirty_at_start`, minus paths already in `kept`, minus run artifacts, minus the Files of tasks already marked `[x]` (after a successful task: only the paths outside its Files list). List it.
 - **Keep** → leave them in place; flag them in the report; exclude them from later pre-flights; add them to the run paths (`marker.mjs push kept <paths>`) so the final review sees them.
