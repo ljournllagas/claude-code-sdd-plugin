@@ -221,8 +221,8 @@ function walk(dir, base = dir) {
   const out = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     // Hidden directories are not part of the Kit layout (editor/tool caches such as .git and
-    // .code-review-graph); .claude-plugin is the one hidden directory that is.
-    if (e.isDirectory() && e.name.startsWith('.') && e.name !== '.claude-plugin') continue;
+    // .code-review-graph); .claude-plugin and .opencode are the hidden directories that are.
+    if (e.isDirectory() && e.name.startsWith('.') && e.name !== '.claude-plugin' && e.name !== '.opencode') continue;
     const p = join(dir, e.name);
     if (e.isDirectory()) out.push(...walk(p, base));
     else out.push(relative(base, p).replace(/\\/g, '/'));
@@ -233,6 +233,10 @@ function walk(dir, base = dir) {
 const EXPECTED_FILES = [
   '.gitattributes',
   '.claude-plugin/plugin.json',
+  '.opencode/opencode.json',
+  '.opencode/commands/sdd.md', '.opencode/commands/sdd-init.md', '.opencode/commands/sdd-status.md',
+  '.opencode/agents/analyst.md', '.opencode/agents/developer.md', '.opencode/agents/planner.md', '.opencode/agents/reviewer.md',
+  '.opencode/plugins/sdd-guard.ts',
   'CHANGELOG.md',
   'README.md',
   'agents/analyst.md', 'agents/developer.md', 'agents/planner.md', 'agents/reviewer.md',
@@ -242,7 +246,7 @@ const EXPECTED_FILES = [
   'hooks/guard.mjs', 'hooks/hooks.json',
   'playbook/amendments.md', 'playbook/execution.md', 'playbook/full.md', 'playbook/legacy.md', 'playbook/quick.md', 'playbook/resume.md', 'playbook/stops.md', 'playbook/team-lead.md',
   'templates/plan.md', 'templates/spec.md', 'templates/starter-context.md', 'templates/task-card.schema.json', 'templates/task.md',
-  'test/card.test.mjs', 'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/marker.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status-edit.test.mjs', 'test/status.test.mjs', 'test/task-done.test.mjs', 'test/verify-waiver.test.mjs', 'test/verify.test.mjs',
+  'test/card.test.mjs', 'test/cite-check.test.mjs', 'test/detect.test.mjs', 'test/doctor.test.mjs', 'test/guard.test.mjs', 'test/index.test.mjs', 'test/lint.test.mjs', 'test/marker.test.mjs', 'test/opencode-mapping.test.mjs', 'test/outcome.test.mjs', 'test/plan.test.mjs', 'test/route.test.mjs', 'test/scope-check.test.mjs', 'test/status-edit.test.mjs', 'test/status.test.mjs', 'test/task-done.test.mjs', 'test/verify-waiver.test.mjs', 'test/verify.test.mjs',
   'test/helpers/project.mjs', 'test/helpers/typesafe-mock.mjs',
 ];
 

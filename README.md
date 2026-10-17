@@ -124,6 +124,25 @@ claude plugin validate "/path/to/claude-code-sdd-plugin"
 
 This repo does not ship a marketplace file yet, so there is no one-line install from GitHub. If you want the plugin in every session without the flag, create a local marketplace folder that has a `.claude-plugin/marketplace.json` pointing at a copy of this plugin, then use `claude plugin marketplace add` and `claude plugin install`. I have validated that approach on a local folder but have not tested it against this GitHub repo.
 
+## OpenCode
+
+Same kit, same version **0.6.15**, dual-support: `.claude-plugin/` for Claude Code, `.opencode/` for OpenCode (v1 stable). No behavior changes — only mechanical mapping.
+
+Layout added:
+
+- `.opencode/commands/sdd.md`, `sdd-init.md`, `sdd-status.md` — same bodies as `commands/`, `description` kept, no `argument-hint`, no `agent`/`model` pin (runs in current session as team-lead). `${CLAUDE_PLUGIN_ROOT}` becomes the literal kit root (parent of `.opencode/`), double-quoted. `$ARGUMENTS` unchanged.
+- `.opencode/agents/analyst.md`, `planner.md`, `developer.md`, `reviewer.md` — same bodies as `agents/`, `description` kept, `mode: subagent`, `tools:` becomes `permission:` (`planner` `bash: deny`, `reviewer` `edit: deny, bash: deny`). No `model` pin; `bin/route.mjs` stays authoritative.
+- `.opencode/plugins/sdd-guard.ts` — v1 named export `SddGuard` on `tool.execute.before`, wrapping `hooks/guard.mjs` `evaluate()` (single source of truth). Maps OpenCode `edit`/`write` to `Edit`/`Write`, denies by throwing `SDD guard: …`. Fails open.
+- `.opencode/opencode.json` — minimal (`$schema` + `plugin: ["./plugins/sdd-guard.ts"]`).
+
+Use from any project with this checkout as kit root:
+
+- `/sdd <request>`, `/sdd-init`, `/sdd-status` (project-local `.opencode/commands/` or global `~/.config/opencode/commands/` copy).
+- `bin/*.mjs` run with `node "<kit>/bin/*.mjs"` via `bash`/`execute`, double-quoted absolute paths (Windows `pwsh`-safe).
+- Tool mapping: `Read`→`read`, `Glob`→`glob`, `Grep`→`grep`, `Write`/`Edit`→`edit`, `Bash`→`bash`. No `NotebookEdit`.
+
+Verify: `node --test test/*.test.mjs` (includes `test/opencode-mapping.test.mjs`).
+
 ## First run in a project
 
 1. Start Claude Code in your project with the plugin loaded.

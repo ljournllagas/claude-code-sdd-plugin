@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — OpenCode port (dual Claude + OpenCode, v0.6.15 unchanged)
+
+### Added
+- `.opencode/commands/sdd.md`, `sdd-init.md`, `sdd-status.md`: faithful mapping of `commands/` (description kept, `argument-hint` dropped, no agent/model pin, `${CLAUDE_PLUGIN_ROOT}` becomes literal kit root).
+- `.opencode/agents/analyst.md`, `planner.md`, `developer.md`, `reviewer.md`: faithful mapping of `agents/` (`mode: subagent`, `tools:` becomes strict `permission:`, no model pin).
+- `.opencode/plugins/sdd-guard.ts` (v1 named export, `tool.execute.before`) wrapping `hooks/guard.mjs`; `.opencode/opencode.json` minimal registration.
+- `test/opencode-mapping.test.mjs`: commands/agents frontmatter, guard wrapper, config registration.
+
 ## 0.6.15 (2026-10-16)
 
 ### Changed
