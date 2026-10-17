@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.16 (2026-10-17) — agent-skills adaptations (prompt-only; mirrored in `.opencode/agents/`)
+
+### Added
+- Reviewer `MODE: code`: **cheapest path to green** is a blocker (new suppression comment, `.skip`/`.only`, deleted test or assertion, lowered threshold, throwing stub, empty `catch`, unrequested waiver); orphaned code is a should-fix.
+- Developer: never make a check pass by weakening it; return `TASK-BLOCKED: defect` instead.
+- Planner: tests assert outcomes not call sequences, limited mocks, behaviour-named tests; outline prefers vertical slices and the riskiest task first. Reviewer plan mode checks both.
+- Source: addyosmani/agent-skills (`constraint-driven-development`, `test-driven-development`, `planning-and-task-breakdown`, `code-review-and-quality`).
+
 ## Unreleased — OpenCode port (dual Claude + OpenCode, v0.6.15 unchanged)
 
 ### Added

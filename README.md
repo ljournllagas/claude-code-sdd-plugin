@@ -11,7 +11,7 @@ You approve the spec and the plan before any code is written. Claude does not mo
 
 The plugin is language-agnostic. It does not care if your project is JavaScript, Python, C# or something else. You tell it your build and test commands once, and it uses those.
 
-Current version: **0.6.15** (see [CHANGELOG.md](CHANGELOG.md)).
+Current version: **0.6.16** (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Why use it
 
@@ -126,7 +126,7 @@ This repo does not ship a marketplace file yet, so there is no one-line install 
 
 ## OpenCode
 
-Same kit, same version **0.6.15**, dual-support: `.claude-plugin/` for Claude Code, `.opencode/` for OpenCode (v1 stable). No behavior changes — only mechanical mapping.
+Same kit, same version **0.6.16**, dual-support: `.claude-plugin/` for Claude Code, `.opencode/` for OpenCode (v1 stable). No behavior changes — only mechanical mapping.
 
 Layout added:
 
